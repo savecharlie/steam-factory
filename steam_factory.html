@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Steam Factory</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: #1a1410;
+      touch-action: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: sans-serif;
+    }
+    #header {
+      color: #d4a847;
+      font-size: 18px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      border: 2px solid #4b3a2a;
+    }
+    #footer {
+      color: #888;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">Loading...</div>
+  <canvas id="game"></canvas>
+  <div id="footer">Swipe or arrow keys to move</div>
+
+  <script>
+// === LEVELS (from train.json) ===
+const LEVELS = [
+  {
+    "name": "Movement",
+    "grid": [
+      "#S###",
+      "#..##",
+      "##..#",
+      "#.#.#",
+      "#...#",
+      "#..##",
+      "##..#",
+      "#...#",
+      "###X#"
+    ],
+    "par": 11
+  },
+  {
+    "name": "Barrel",
+    "grid": [
+      "#S###",
+      "#...#",
+      "##..#",
+      "#...#",
+      "#...#",
+      "#...#",
+      "#..##",
+      "##..#",
+      "###X#"
+    ],
+    "par": 9
+  },
+  {
+    "name": "Button",
+    "grid": [
+      "#S###",
+      "#..##",
+      "##..#",
+      "#.#.#",
+      "#...#",
+      "#.BO#",
+      "#...#",
+      "##.G#",
+      "###X#"
+    ],
+    "par": 12
+  },
+  {
+    "name": "Valve",
+    "grid": [
+      "#S###",
+      "#...#",
+      "##B.#",
+      "#.V##",
+      "#.###",
+      "#...#",
+      "#..##",
+      "##..#",
+      "###X#"
+    ],
+    "par": 12
+  },
+  {
+    "name": "Conveyor",
+    "grid": [
+      "#S###",
+      "#>.##",
+      "##..#",
+      "#.#.#",
+      "#...#",
+      "#..##",
+      "##..#",
+      "#...#",
+      "###X#"
+    ],
+    "par": 10
+  },
+  {
+    "name": "Combo",
+    "grid": [
+      "#S####",
+      "#..#.#",
+      "#..#.#",
+      "##..##",
+      "#....#",
+      "#..#.#",
+      "#...O#",
+      "##..G#",
+      "#....#",
+      "####X#"
+    ],
+    "par": 14
+  }
+];
+
+// === GAME STATE ===
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const header = document.getElementById('header');
+
+let currentLevel = 0;
+let grid = [];
+let gridW = 0;
+let gridH = 0;
+let CELL = 50;
+
+let playerX = 0, playerY = 0;           // Grid position
+let playerRenderX = 0, playerRenderY = 0; // Render position (animated)
+let isAnimating = false;
+let gateOpen = false;
+let moveCount = 0;
+let showWin = false;
+
+// === COLORS (Burnished Bronze palette) ===
+const COLORS = {
+  bg: '#16100c',
+  floor: '#2a2018',
+  floorAlt: '#261c15',
+  wall: '#4b3a2a',
+  wallHi: '#6b5040',
+  bronze: '#b4783c',
+  bronzeHi: '#dca564',
+  bronzeSh: '#825a2d',
+  steam: '#f0dcc8',
+  steamDanger: '#ffc8b4',
+  gold: '#ffc864',
+  player: '#ffd28c',
+  button: '#be4132',
+  buttonPressed: '#8c3228',
+  exit: '#6eb464',
+  exitLocked: '#506e46',
+  gate: '#9b6937',
+  valve: '#b43c32',
+  valveRim: '#a06432',
+  barrel: '#be8246',
+  barrelHi: '#dca564',
+  barrelSh: '#8c5f32'
+};
+
+// === RESIZE ===
+function resize() {
+  const level = LEVELS[currentLevel];
+  gridH = level.grid.length;
+  gridW = level.grid[0].length;
+
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+
+  // Leave space for header/footer
+  const maxH = vh - 100;
+  const maxW = vw - 20;
+
+  const cellFromH = Math.floor(maxH / gridH);
+  const cellFromW = Math.floor(maxW / gridW);
+  CELL = Math.min(cellFromH, cellFromW, 80); // Cap at 80px
+
+  canvas.width = gridW * CELL;
+  canvas.height = gridH * CELL;
+
+  draw();
+}
+
+// === LOAD LEVEL ===
+function loadLevel(index) {
+  currentLevel = index;
+  const level = LEVELS[index];
+
+  // Convert strings to mutable char arrays
+  grid = level.grid.map(row => row.split(''));
+  gridH = grid.length;
+  gridW = grid[0].length;
+
+  // Find player start (S)
+  for (let y = 0; y < gridH; y++) {
+    for (let x = 0; x < gridW; x++) {
+      if (grid[y][x] === 'S') {
+        playerX = x;
+        playerY = y;
+        playerRenderX = x;
+        playerRenderY = y;
+      }
+    }
+  }
+
+  moveCount = 0;
+  showWin = false;
+
+  // Initialize gate state (checks buttons with barrels)
+  updateGateState();
+
+  resize();
+  updateHeader();
+}
+
+function updateHeader() {
+  const level = LEVELS[currentLevel];
+  header.textContent = `${level.name} - Moves: ${moveCount} (Par: ${level.par})`;
+}
+
+// === COLLISION ===
+function isSolid(x, y, ignoreBarrels = false) {
+  if (x < 0 || y < 0 || y >= gridH || x >= gridW) return true;
+  const cell = grid[y][x];
+  if (cell === '#') return true;
+  if (cell === 'G' && !gateOpen) return true;
+  if ((cell === 'B' || cell === 'P') && !ignoreBarrels) return true;  // P = barrel on button
+  return false;
+}
+
+// Check if barrel can be pushed in direction
+function canPushBarrel(bx, by, dx, dy) {
+  const nx = bx + dx;
+  const ny = by + dy;
+  // Barrel can be pushed if destination is empty floor, button, or valve
+  if (nx < 0 || ny < 0 || ny >= gridH || nx >= gridW) return false;
+  const dest = grid[ny][nx];
+  return dest === '.' || dest === 'O' || dest === 'V';
+}
+
+// Push barrel and update grid - barrel SLIDES until hitting wall
+function pushBarrel(bx, by, dx, dy) {
+  // What was under the barrel?
+  const wasOnButton = (grid[by][bx] === 'P');
+
+  // Clear old barrel position
+  grid[by][bx] = wasOnButton ? 'O' : '.';  // Restore button if was pressed
+
+  // Slide barrel until it hits something solid
+  let nx = bx + dx;
+  let ny = by + dy;
+  while (true) {
+    const cell = grid[ny][nx];
+
+    // Stop on button (barrel rests on it)
+    if (cell === 'O') {
+      grid[ny][nx] = 'P';  // Barrel on button (pressed)
+      break;
+    }
+
+    // Stop on valve (barrel seals it)
+    if (cell === 'V') {
+      grid[ny][nx] = 'W';  // Barrel seals valve (safe)
+      break;
+    }
+
+    // Check what's ahead
+    const aheadX = nx + dx;
+    const aheadY = ny + dy;
+    const ahead = (aheadY >= 0 && aheadY < gridH && aheadX >= 0 && aheadX < gridW) ? grid[aheadY][aheadX] : '#';
+
+    // Stop if next cell is solid (wall, gate, another barrel)
+    if (ahead === '#' || ahead === 'G' || ahead === 'B' || ahead === 'P' || ahead === 'W') {
+      grid[ny][nx] = 'B';  // Barrel stops here
+      break;
+    }
+
+    // Keep sliding
+    nx += dx;
+    ny += dy;
+  }
+
+  // Update gate state - check if ANY button has barrel on it
+  updateGateState();
+}
+
+function isDeadly(x, y) {
+  if (x < 0 || y < 0 || y >= gridH || x >= gridW) return false;
+  return grid[y][x] === 'V';
+}
+
+// Update gate state based on buttons (player OR barrel)
+function updateGateState() {
+  const hasGate = grid.some(row => row.includes('G'));
+  if (!hasGate) {
+    gateOpen = true;
+    return;
+  }
+
+  // Gate opens if player on button OR any barrel on button (P)
+  const playerOnButton = grid[playerY] && grid[playerY][playerX] === 'O';
+  const barrelOnButton = grid.some(row => row.includes('P'));
+
+  gateOpen = playerOnButton || barrelOnButton;
+}
+
+// === MOVEMENT ===
+function move(dx, dy) {
+  if (isAnimating || showWin) return;
+
+  let x = playerX;
+  let y = playerY;
+
+  // Track if we started on button (for mid-slide gate closing)
+  const startedOnButton = grid[playerY][playerX] === 'O';
+  let leftButton = false;
+
+  // Slide until hitting solid
+  while (true) {
+    const nx = x + dx;
+    const ny = y + dy;
+
+    // If we just left a button, update gate state immediately
+    // This makes the gate close mid-slide!
+    if (startedOnButton && !leftButton && grid[y][x] !== 'O') {
+      leftButton = true;
+      // Check if any barrel is holding button open
+      const barrelOnButton = grid.some(row => row.includes('P'));
+      if (!barrelOnButton) {
+        gateOpen = false;  // Gate closes as we leave button!
+      }
+    }
+
+    // Check for barrel - try to push it
+    const nextCell = (ny >= 0 && ny < gridH && nx >= 0 && nx < gridW) ? grid[ny][nx] : '#';
+    if (nextCell === 'B' || nextCell === 'P') {
+      // Try to push barrel
+      if (canPushBarrel(nx, ny, dx, dy)) {
+        pushBarrel(nx, ny, dx, dy);
+        // Player stops where barrel was
+        x = nx;
+        y = ny;
+      }
+      break;  // Stop whether push succeeded or not
+    }
+
+    if (isSolid(nx, ny)) break;
+
+    // Check for death (valve)
+    if (isDeadly(nx, ny)) {
+      // Die - restart level
+      loadLevel(currentLevel);
+      return;
+    }
+
+    x = nx;
+    y = ny;
+
+    // Update gate state after each step (in case we just left button)
+    if (startedOnButton && !leftButton && grid[y][x] !== 'O') {
+      leftButton = true;
+      const barrelOnButton = grid.some(row => row.includes('P'));
+      if (!barrelOnButton) {
+        gateOpen = false;
+      }
+    }
+
+    // Stop on button (momentary - must stay on it)
+    if (grid[y][x] === 'O') break;
+
+    // Stop on exit
+    if (grid[y][x] === 'X') break;
+
+    // Conveyor - get pushed in conveyor direction
+    const cell = grid[y][x];
+    if (cell === '>') { dx = 1; dy = 0; }
+    else if (cell === '<') { dx = -1; dy = 0; }
+    else if (cell === '^') { dx = 0; dy = -1; }
+    else if (cell === 'v') { dx = 0; dy = 1; }
+  }
+
+  // Only count move if we actually moved
+  if (x !== playerX || y !== playerY) {
+    // Save gate state from when move started (for win check)
+    const gateWasOpen = gateOpen;
+
+    playerX = x;
+    playerY = y;
+    moveCount++;
+
+    // Update gate state
+    updateGateState();
+
+    // For win check: if we passed through gate while open, allow win
+    if (grid[playerY][playerX] === 'X' && gateWasOpen) {
+      gateOpen = true; // Keep open for win check
+    }
+
+    updateHeader();
+    animateTo(x, y);
+  }
+}
+
+// === ANIMATION ===
+function animateTo(targetX, targetY) {
+  if (isAnimating) return;
+  isAnimating = true;
+
+  const startX = playerRenderX;
+  const startY = playerRenderY;
+  const startTime = performance.now();
+  const duration = 150; // ms
+
+  function update(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+
+    playerRenderX = startX + (targetX - startX) * ease;
+    playerRenderY = startY + (targetY - startY) * ease;
+
+    draw();
+
+    if (t < 1) {
+      requestAnimationFrame(update);
+    } else {
+      playerRenderX = targetX;
+      playerRenderY = targetY;
+      isAnimating = false;
+      draw();
+      checkWin();
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+// === WIN CHECK ===
+function checkWin() {
+  if (grid[playerY][playerX] === 'X' && gateOpen) {
+    showWin = true;
+    draw();
+
+    setTimeout(() => {
+      showWin = false;
+      if (currentLevel < LEVELS.length - 1) {
+        loadLevel(currentLevel + 1);
+      } else {
+        // Beat all levels!
+        header.textContent = 'You beat all levels! Tap to restart';
+        currentLevel = -1;
+      }
+    }, 1200);
+  }
+}
+
+// === DRAWING FUNCTIONS (ported from original) ===
+
+function drawFloor(px, py, alt) {
+  ctx.fillStyle = alt ? COLORS.floorAlt : COLORS.floor;
+  ctx.fillRect(px, py, CELL, CELL);
+  ctx.strokeStyle = '#1f1810';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(px, py + CELL / 3);
+  ctx.lineTo(px + CELL, py + CELL / 3);
+  ctx.moveTo(px, py + 2 * CELL / 3);
+  ctx.lineTo(px + CELL, py + 2 * CELL / 3);
+  ctx.stroke();
+}
+
+function drawWall(px, py) {
+  ctx.fillStyle = COLORS.wall;
+  ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+  ctx.fillStyle = COLORS.wallHi;
+  ctx.fillRect(px + 3, py + 3, CELL - 6, CELL - 6);
+
+  const rivets = [[6, 6], [CELL - 10, 6], [6, CELL - 10], [CELL - 10, CELL - 10]];
+  for (const [rx, ry] of rivets) {
+    ctx.fillStyle = COLORS.bronzeSh;
+    ctx.beginPath();
+    ctx.arc(px + rx + 3, py + ry + 3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.bronze;
+    ctx.beginPath();
+    ctx.arc(px + rx + 3, py + ry + 3, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawEntry(px, py, roomNum) {
+  ctx.fillStyle = '#375540';
+  ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+  ctx.fillStyle = '#64a06e';
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Room number
+  ctx.fillStyle = '#1a3320';
+  ctx.font = `bold ${Math.floor(CELL * 0.4)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(roomNum, px + CELL / 2, py + CELL / 2 + 1);
+}
+
+function drawExit(px, py, open) {
+  ctx.fillStyle = open ? COLORS.exit : COLORS.exitLocked;
+  ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+  ctx.fillStyle = open ? '#96dc8c' : '#5a7850';
+  ctx.fillRect(px + 6, py + 6, CELL - 12, CELL - 12);
+
+  if (!open) {
+    ctx.fillStyle = COLORS.bronzeSh;
+    ctx.fillRect(px + CELL/2 - 4, py + CELL/2, 8, 8);
+    ctx.beginPath();
+    ctx.arc(px + CELL/2, py + CELL/2, 5, Math.PI, 0);
+    ctx.strokeStyle = COLORS.bronzeSh;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawButton(px, py, pressed) {
+  drawFloor(px, py, false);
+  ctx.fillStyle = COLORS.bronzeSh;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (pressed) {
+    ctx.fillStyle = COLORS.buttonPressed;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2 + 2, CELL / 2 - 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = COLORS.button;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e66455';
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2 - 3, CELL / 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGate(px, py, open) {
+  if (open) {
+    drawFloor(px, py, true);
+    ctx.fillStyle = COLORS.gate;
+    ctx.fillRect(px + 2, py + 4, 4, CELL - 8);
+    ctx.fillRect(px + CELL - 6, py + 4, 4, CELL - 8);
+  } else {
+    ctx.fillStyle = COLORS.gate;
+    ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+    for (let i = 0; i < 4; i++) {
+      const bx = px + 5 + i * 8;
+      ctx.fillStyle = COLORS.bronze;
+      ctx.fillRect(bx, py + 4, 4, CELL - 8);
+      ctx.strokeStyle = COLORS.bronzeHi;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx + 2, py + 4);
+      ctx.lineTo(bx + 2, py + CELL - 4);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawOpenValve(px, py) {
+  drawFloor(px, py, false);
+  ctx.fillStyle = COLORS.valveRim;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.valve;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#190f0c';
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4 - 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Steam puffs
+  ctx.fillStyle = COLORS.steamDanger;
+  for (let i = 0; i < 4; i++) {
+    const sx = px + 8 + (i % 3) * 8;
+    const sy = py - 4 - i * 4;
+    const r = 6 - i;
+    ctx.beginPath();
+    ctx.ellipse(sx + r, sy + r/2, r, r/2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBarrel(px, py) {
+  ctx.fillStyle = COLORS.barrelSh;
+  ctx.beginPath();
+  ctx.ellipse(px + CELL / 2 + 2, py + CELL / 2 + 2, CELL / 2 - 6, CELL / 2 - 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.barrel;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.barrelHi;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2 - 3, py + CELL / 2 - 4, CELL / 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.bronzeSh;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = COLORS.bronze;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawConveyor(px, py, dir) {
+  drawFloor(px, py, false);
+  ctx.fillStyle = COLORS.bronzeSh;
+  ctx.fillRect(px + 4, py + 12, CELL - 8, CELL - 24);
+  ctx.strokeStyle = COLORS.bronzeHi;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px + 5, py + CELL / 2);
+  ctx.lineTo(px + CELL - 5, py + CELL / 2);
+  ctx.stroke();
+
+  const cx = px + CELL / 2;
+  const cy = py + CELL / 2;
+  ctx.fillStyle = COLORS.gold;
+  ctx.beginPath();
+
+  switch (dir) {
+    case '>':
+      ctx.moveTo(cx + 10, cy);
+      ctx.lineTo(cx - 5, cy - 7);
+      ctx.lineTo(cx - 5, cy + 7);
+      break;
+    case '<':
+      ctx.moveTo(cx - 10, cy);
+      ctx.lineTo(cx + 5, cy - 7);
+      ctx.lineTo(cx + 5, cy + 7);
+      break;
+    case '^':
+      ctx.moveTo(cx, cy - 10);
+      ctx.lineTo(cx - 7, cy + 5);
+      ctx.lineTo(cx + 7, cy + 5);
+      break;
+    case 'v':
+      ctx.moveTo(cx, cy + 10);
+      ctx.lineTo(cx - 7, cy - 5);
+      ctx.lineTo(cx + 7, cy - 5);
+      break;
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawPlayer(px, py) {
+  // Glow
+  ctx.fillStyle = 'rgba(255, 210, 140, 0.3)';
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = COLORS.player;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#c8a064';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Eyes
+  ctx.fillStyle = '#32261c';
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2 - 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
+  ctx.arc(px + CELL / 2 + 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Smile
+  ctx.strokeStyle = '#32261c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px + CELL / 2, py + CELL / 2 + 2, 6, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+}
+
+// === DRAWING ===
+function draw() {
+  // Clear
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw grid
+  for (let y = 0; y < gridH; y++) {
+    for (let x = 0; x < gridW; x++) {
+      const cell = grid[y][x];
+      const px = x * CELL;
+      const py = y * CELL;
+      const alt = (x + y) % 2 === 0;
+
+      switch (cell) {
+        case '.':
+          drawFloor(px, py, alt);
+          break;
+        case '#':
+          drawWall(px, py);
+          break;
+        case 'S':
+          drawEntry(px, py, currentLevel + 1);
+          break;
+        case 'X':
+          drawExit(px, py, gateOpen);
+          break;
+        case 'O':
+          const isPressed = (Math.floor(playerRenderX + 0.5) === x && Math.floor(playerRenderY + 0.5) === y);
+          drawButton(px, py, isPressed);
+          break;
+        case 'G':
+          drawGate(px, py, gateOpen);
+          break;
+        case 'B':
+          drawFloor(px, py, alt);
+          drawBarrel(px, py);
+          break;
+        case 'P':  // Barrel on button (pressed)
+          drawButton(px, py, true);  // Draw pressed button
+          drawBarrel(px, py);        // Draw barrel on top
+          break;
+        case 'W':  // Barrel sealing valve (safe)
+          drawFloor(px, py, alt);    // Sealed valve becomes safe floor
+          drawBarrel(px, py);        // Draw barrel on top
+          break;
+        case 'V':
+          drawOpenValve(px, py);
+          break;
+        case '>':
+        case '<':
+        case '^':
+        case 'v':
+          drawConveyor(px, py, cell);
+          break;
+      }
+    }
+  }
+
+  // Draw player at render position (smooth)
+  drawPlayer(playerRenderX * CELL, playerRenderY * CELL);
+
+  // Win overlay
+  if (showWin) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#d4a847';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Level Complete!', canvas.width/2, canvas.height/2 - 15);
+
+    const level = LEVELS[currentLevel];
+    const rating = moveCount <= level.par ? '\u2B50' : '';
+    ctx.font = '18px sans-serif';
+    ctx.fillText(`Moves: ${moveCount} / ${level.par} ${rating}`, canvas.width/2, canvas.height/2 + 15);
+  }
+}
+
+// === INPUT: TOUCH ===
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+
+  const threshold = 30;
+
+  // Check if it's a tap (to restart after winning all)
+  if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+    if (currentLevel === -1) loadLevel(0);
+    return;
+  }
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 0) move(1, 0);   // right
+    else move(-1, 0);          // left
+  } else {
+    if (dy > 0) move(0, 1);   // down
+    else move(0, -1);          // up
+  }
+
+  e.preventDefault();
+}, { passive: false });
+
+// === INPUT: KEYBOARD ===
+document.addEventListener('keydown', e => {
+  switch (e.key) {
+    case 'ArrowUp': case 'w': case 'W': move(0, -1); break;
+    case 'ArrowDown': case 's': case 'S': move(0, 1); break;
+    case 'ArrowLeft': case 'a': case 'A': move(-1, 0); break;
+    case 'ArrowRight': case 'd': case 'D': move(1, 0); break;
+    case 'r': case 'R': loadLevel(currentLevel); break;
+  }
+});
+
+// === INIT ===
+window.addEventListener('resize', resize);
+loadLevel(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Steam Factory</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      background: #16100c;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Georgia', serif;
+      color: #e6b478;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    #header {
+      text-align: center;
+      padding: 10px;
+      flex-shrink: 0;
+    }
+    #title {
+      font-size: 24px;
+      color: #ffd28c;
+      text-shadow: 2px 2px 4px #000;
+    }
+    #level-name {
+      font-size: 16px;
+      color: #a07350;
+      margin-top: 3px;
+    }
+    #game-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      min-height: 0;
+      min-width: 0;
+    }
+    #canvas {
+      border: 3px solid #4b3a2a;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      touch-action: none;
+    }
+    #footer {
+      flex-shrink: 0;
+      padding: 8px;
+      text-align: center;
+    }
+    #moves {
+      font-size: 18px;
+      color: #b89060;
+      margin-bottom: 8px;
+    }
+    #message {
+      font-size: 20px;
+      color: #8eb470;
+      min-height: 26px;
+      margin-bottom: 8px;
+    }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    button {
+      background: #4b3a2a;
+      color: #e6b478;
+      border: 2px solid #6b5040;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      min-width: 70px;
+    }
+    button:hover { background: #5b4a3a; }
+    button:active { background: #3b2a1a; transform: scale(0.95); }
+    #instructions {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #806040;
+    }
+
+    /* Landscape mode */
+    @media (orientation: landscape) {
+      body {
+        flex-direction: row;
+      }
+      #header {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        padding: 10px 5px;
+        display: none; /* Hide in landscape for more space */
+      }
+      #game-area {
+        flex: 1;
+      }
+      #footer {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 10px;
+        min-width: 120px;
+      }
+      #controls {
+        flex-direction: column;
+        gap: 8px;
+      }
+      button {
+        padding: 10px 15px;
+        font-size: 14px;
+        min-width: 60px;
+      }
+    }
+
+    /* Desktop mode - larger screens */
+    @media (min-width: 800px) and (orientation: landscape) {
+      body {
+        justify-content: center;
+        align-items: center;
+      }
+      #header {
+        display: block;
+        writing-mode: horizontal-tb;
+        transform: none;
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      #footer {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row;
+        min-width: auto;
+      }
+      #controls {
+        flex-direction: row;
+      }
+      #game-area {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div id="title">STEAM FACTORY</div>
+    <div id="level-name">Car 1: Movement</div>
+  </div>
+  <div id="game-area">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="footer">
+    <div id="moves">Moves: 0</div>
+    <div id="message"></div>
+    <div id="controls">
+      <button id="restart">Restart</button>
+      <button id="prev">&lt;</button>
+      <button id="next">&gt;</button>
+    </div>
+    <div id="instructions">Swipe to move</div>
+  </div>
+
+<script>
+let CELL = 40;  // Will be calculated dynamically
+const LEVELS = [
+  {
+    "name": "Level 1",
+    "grid": [
+      "##S##",
+      "#...#",
+      "#.#.#",
+      "#...#",
+      "#.O.#",
+      "#...#",
+      "#.#.#",
+      "#.G.X",
+      "#####"
+    ],
+    "par": 4
+  },
+  {
+    "name": "Level 2",
+    "grid": [
+      "##S###",
+      "#....#",
+      "#.B#.#",
+      "#....#",
+      "#.V..#",
+      "#..#.#",
+      "#....#",
+      "#...##",
+      "####X#"
+    ],
+    "par": 5
+  }
+];
+
+// Colors - Burnished Bronze palette
+const COLORS = {
+  bg: '#16100c',
+  floor: '#2a2018',
+  floorAlt: '#261c15',
+  wall: '#4b3a2a',
+  wallHi: '#6b5040',
+  bronze: '#b4783c',
+  bronzeHi: '#dca564',
+  bronzeSh: '#825a2d',
+  steam: '#f0dcc8',
+  steamDanger: '#ffc8b4',
+  gold: '#ffc864',
+  player: '#ffd28c',
+  button: '#be4132',
+  buttonPressed: '#8c3228',
+  exit: '#6eb464',
+  exitLocked: '#506e46',
+  gate: '#9b6937',
+  valve: '#b43c32',
+  valveRim: '#a06432',
+  barrel: '#be8246',
+  barrelHi: '#dca564',
+  barrelSh: '#8c5f32'
+};
+
+// Easing function - ease out quad (feels natural for sliding)
+function easeOutQuad(t) {
+  return 1 - (1 - t) * (1 - t);
+}
+
+class Game {
+  constructor() {
+    this.canvas = document.getElementById('canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.currentLevel = 0;
+    this.moves = 0;
+
+    // Grid position (integers)
+    this.gridX = 0;
+    this.gridY = 0;
+
+    // Render position (pixels, for smooth animation)
+    this.renderX = 0;
+    this.renderY = 0;
+
+    this.barrels = [];
+    this.visitedButtons = new Set();
+    this.sealedValves = new Set();
+    this.won = false;
+    this.isMoving = false;  // CRITICAL: blocks input during animation
+
+    // Load saved progress
+    this.loadProgress();
+
+    this.setupInput();
+    this.loadLevel(this.currentLevel);
+  }
+
+  // === LOCAL STORAGE ===
+  loadProgress() {
+    try {
+      const saved = localStorage.getItem('steamFactory');
+      if (saved) {
+        const data = JSON.parse(saved);
+        this.currentLevel = data.currentLevel || 0;
+        this.completedLevels = data.completedLevels || [];
+        this.bestMoves = data.bestMoves || {};
+      } else {
+        this.completedLevels = [];
+        this.bestMoves = {};
+      }
+    } catch (e) {
+      this.completedLevels = [];
+      this.bestMoves = {};
+    }
+  }
+
+  saveProgress() {
+    try {
+      const data = {
+        currentLevel: this.currentLevel,
+        completedLevels: this.completedLevels,
+        bestMoves: this.bestMoves
+      };
+      localStorage.setItem('steamFactory', JSON.stringify(data));
+    } catch (e) {
+      console.log('Could not save progress');
+    }
+  }
+
+  recordCompletion(levelIndex, moves) {
+    if (!this.completedLevels.includes(levelIndex)) {
+      this.completedLevels.push(levelIndex);
+    }
+    const key = `level_${levelIndex}`;
+    if (!this.bestMoves[key] || moves < this.bestMoves[key]) {
+      this.bestMoves[key] = moves;
+    }
+    this.saveProgress();
+  }
+
+  loadLevel(index) {
+    this.currentLevel = index;
+    const level = LEVELS[index];
+
+    // Get original grid
+    let grid = level.grid.map(row => row.split(''));
+    let levelH = grid.length;
+    let levelW = grid[0].length;
+
+    // Check if we should rotate to fit screen better
+    const gameArea = document.getElementById('game-area');
+    const availW = gameArea.clientWidth - 20;
+    const availH = gameArea.clientHeight - 20;
+
+    const screenIsPortrait = availH > availW;
+    const levelIsPortrait = levelH > levelW;
+
+    // Rotate grid 90° CW if orientations don't match
+    this.rotated = (screenIsPortrait !== levelIsPortrait);
+
+    if (this.rotated) {
+      // Rotate grid 90° clockwise
+      const newGrid = [];
+      for (let x = 0; x < levelW; x++) {
+        const newRow = [];
+        for (let y = levelH - 1; y >= 0; y--) {
+          let c = grid[y][x];
+          // Rotate conveyor directions too
+          if (c === '>') c = 'v';
+          else if (c === 'v') c = '<';
+          else if (c === '<') c = '^';
+          else if (c === '^') c = '>';
+          newRow.push(c);
+        }
+        newGrid.push(newRow);
+      }
+      grid = newGrid;
+      [levelW, levelH] = [levelH, levelW];
+    }
+
+    this.grid = grid;
+    this.h = levelH;
+    this.w = levelW;
+    this.moves = 0;
+    this.visitedButtons = new Set();
+    this.sealedValves = new Set();
+    this.barrels = [];
+    this.won = false;
+    this.isMoving = false;
+
+    // Calculate cell size to fit screen
+    const cellW = Math.floor(availW / this.w);
+    const cellH = Math.floor(availH / this.h);
+    CELL = Math.min(cellW, cellH, 80);  // Cap at 80px max for bigger tiles
+    CELL = Math.max(CELL, 30);  // Min 30px
+
+    // Find player start and barrels
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const c = this.grid[y][x];
+        if (c === 'S') {
+          this.gridX = x;
+          this.gridY = y;
+          this.renderX = x * CELL;
+          this.renderY = y * CELL;
+        } else if (c === 'B') {
+          this.barrels.push({
+            gridX: x, gridY: y,
+            renderX: x * CELL, renderY: y * CELL
+          });
+          this.grid[y][x] = '.';
+        }
+      }
+    }
+
+    // Resize canvas
+    this.canvas.width = this.w * CELL;
+    this.canvas.height = this.h * CELL;
+
+    document.getElementById('level-name').textContent = level.name;
+
+    // Show best score if exists
+    const bestKey = `level_${index}`;
+    let movesText = `Moves: 0 / Par: ${level.par}`;
+    if (this.bestMoves && this.bestMoves[bestKey]) {
+      movesText += ` (Best: ${this.bestMoves[bestKey]})`;
+    }
+    document.getElementById('moves').textContent = movesText;
+    document.getElementById('message').textContent = '';
+
+    // Save current level
+    this.saveProgress();
+
+    this.render();
+  }
+
+  get(x, y) {
+    if (x < 0 || x >= this.w || y < 0 || y >= this.h) return '#';
+    return this.grid[y][x];
+  }
+
+  hasBarrel(x, y) {
+    return this.barrels.some(b => b.gridX === x && b.gridY === y);
+  }
+
+  getBarrelAt(x, y) {
+    return this.barrels.find(b => b.gridX === x && b.gridY === y);
+  }
+
+  isValveSealed(x, y) {
+    return this.sealedValves.has(`${x},${y}`);
+  }
+
+  hasGate() {
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (this.grid[y][x] === 'G') return true;
+      }
+    }
+    return false;
+  }
+
+  isGateOpen() {
+    if (!this.hasGate()) return true;
+    return this.visitedButtons.size > 0;
+  }
+
+  isSolid(x, y) {
+    const c = this.get(x, y);
+    if (c === '#') return true;
+    if (c === 'G' && !this.isGateOpen()) return true;
+    if (this.hasBarrel(x, y)) return true;
+    return false;
+  }
+
+  isDeadly(x, y) {
+    const c = this.get(x, y);
+    if (c === 'V' && !this.isValveSealed(x, y)) return true;
+    return false;
+  }
+
+  // CORE MECHANIC: Find target position using while loop
+  findTargetPosition(startX, startY, dx, dy) {
+    let x = startX;
+    let y = startY;
+    let hitDeadly = false;
+
+    while (true) {
+      const nextX = x + dx;
+      const nextY = y + dy;
+
+      // Check collision
+      if (this.isSolid(nextX, nextY)) {
+        break;
+      }
+
+      // Check death
+      if (this.isDeadly(nextX, nextY)) {
+        x = nextX;
+        y = nextY;
+        hitDeadly = true;
+        break;
+      }
+
+      x = nextX;
+      y = nextY;
+
+      const c = this.get(x, y);
+
+      // Sticky elements stop sliding
+      if (c === 'O') {  // Button
+        this.visitedButtons.add(`${x},${y}`);
+        break;
+      }
+      if (c === 'X') {  // Exit
+        break;
+      }
+
+      // Conveyor changes direction
+      if (c === '>' || c === '<' || c === '^' || c === 'v') {
+        const convDirs = {'>': [1, 0], '<': [-1, 0], '^': [0, -1], 'v': [0, 1]};
+        const [cdx, cdy] = convDirs[c];
+
+        // Continue in conveyor direction
+        while (true) {
+          const cx = x + cdx;
+          const cy = y + cdy;
+
+          if (this.isSolid(cx, cy)) break;
+          if (this.isDeadly(cx, cy)) {
+            x = cx;
+            y = cy;
+            hitDeadly = true;
+            break;
+          }
+
+          x = cx;
+          y = cy;
+
+          const nc = this.get(x, y);
+          if (nc !== '>' && nc !== '<' && nc !== '^' && nc !== 'v') break;
+        }
+        break;
+      }
+    }
+
+    return { x, y, hitDeadly };
+  }
+
+  // Push barrel - returns new position or null if can't push
+  pushBarrel(barrel, dx, dy) {
+    let x = barrel.gridX;
+    let y = barrel.gridY;
+
+    while (true) {
+      const nx = x + dx;
+      const ny = y + dy;
+
+      const c = this.get(nx, ny);
+      if (c === '#') break;
+      if (c === 'G' && !this.isGateOpen()) break;
+      if (this.hasBarrel(nx, ny)) break;
+
+      x = nx;
+      y = ny;
+
+      // Barrel seals valve
+      if (c === 'V') {
+        this.sealedValves.add(`${x},${y}`);
+        break;
+      }
+
+      // Barrel on button
+      if (c === 'O') {
+        this.visitedButtons.add(`${x},${y}`);
+        break;
+      }
+    }
+
+    if (x === barrel.gridX && y === barrel.gridY) {
+      return null;  // Couldn't move
+    }
+
+    return { x, y };
+  }
+
+  // SMOOTH ANIMATION using requestAnimationFrame
+  animateTo(targetX, targetY, barrel = null, barrelTargetX = null, barrelTargetY = null) {
+    return new Promise(resolve => {
+      const startX = this.renderX;
+      const startY = this.renderY;
+      const endX = targetX * CELL;
+      const endY = targetY * CELL;
+
+      let barrelStartX, barrelStartY, barrelEndX, barrelEndY;
+      if (barrel) {
+        barrelStartX = barrel.renderX;
+        barrelStartY = barrel.renderY;
+        barrelEndX = barrelTargetX * CELL;
+        barrelEndY = barrelTargetY * CELL;
+      }
+
+      const duration = 250;  // ms - snappy but smooth
+      const startTime = performance.now();
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = easeOutQuad(progress);
+
+        // Update player render position
+        this.renderX = startX + (endX - startX) * eased;
+        this.renderY = startY + (endY - startY) * eased;
+
+        // Update barrel render position if pushing
+        if (barrel) {
+          barrel.renderX = barrelStartX + (barrelEndX - barrelStartX) * eased;
+          barrel.renderY = barrelStartY + (barrelEndY - barrelStartY) * eased;
+        }
+
+        this.render();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Snap to final grid position
+          this.gridX = targetX;
+          this.gridY = targetY;
+          this.renderX = endX;
+          this.renderY = endY;
+
+          if (barrel) {
+            barrel.gridX = barrelTargetX;
+            barrel.gridY = barrelTargetY;
+            barrel.renderX = barrelEndX;
+            barrel.renderY = barrelEndY;
+          }
+
+          resolve();
+        }
+      };
+
+      requestAnimationFrame(animate);
+    });
+  }
+
+  // Transform input direction if grid is rotated
+  transformInput(dx, dy) {
+    if (!this.rotated) return [dx, dy];
+    // Grid rotated 90° CW, so rotate input 90° CW too
+    // right(1,0)->down(0,1), down(0,1)->left(-1,0), left(-1,0)->up(0,-1), up(0,-1)->right(1,0)
+    return [dy, -dx];
+  }
+
+  // Main move handler
+  async handleMove(dx, dy) {
+    if (this.isMoving || this.won) return;
+
+    // Transform input if rotated
+    [dx, dy] = this.transformInput(dx, dy);
+
+    // Check if pushing a barrel
+    const nextX = this.gridX + dx;
+    const nextY = this.gridY + dy;
+    const barrel = this.getBarrelAt(nextX, nextY);
+
+    let barrelTarget = null;
+    if (barrel) {
+      barrelTarget = this.pushBarrel(barrel, dx, dy);
+      if (!barrelTarget) return;  // Can't push barrel
+    }
+
+    // Find target position
+    const target = this.findTargetPosition(this.gridX, this.gridY, dx, dy);
+
+    // Check if actually moving
+    if (target.x === this.gridX && target.y === this.gridY) {
+      return;  // No movement
+    }
+
+    // Start animation
+    this.isMoving = true;
+
+    if (barrel && barrelTarget) {
+      await this.animateTo(target.x, target.y, barrel, barrelTarget.x, barrelTarget.y);
+    } else {
+      await this.animateTo(target.x, target.y);
+    }
+
+    this.moves++;
+    const level = LEVELS[this.currentLevel];
+    const bestKey = `level_${this.currentLevel}`;
+    let movesText = `Moves: ${this.moves} / Par: ${level.par}`;
+    if (this.bestMoves && this.bestMoves[bestKey]) {
+      movesText += ` (Best: ${this.bestMoves[bestKey]})`;
+    }
+    document.getElementById('moves').textContent = movesText;
+
+    // Check death
+    if (target.hitDeadly) {
+      document.getElementById('message').textContent = '💀 Steam blast! Press Restart';
+      this.isMoving = false;
+      return;
+    }
+
+    // Check win
+    const c = this.get(this.gridX, this.gridY);
+    if (c === 'X' && this.isGateOpen()) {
+      this.won = true;
+      this.recordCompletion(this.currentLevel, this.moves);
+
+      let msg = this.moves <= level.par ? '🌟 Perfect!' : '✅ Complete!';
+      const bestKey = `level_${this.currentLevel}`;
+      if (this.bestMoves[bestKey]) {
+        msg += ` Best: ${this.bestMoves[bestKey]}`;
+      }
+      if (this.currentLevel < LEVELS.length - 1) {
+        msg += ' → Swipe';
+      } else {
+        msg += ' 🎉 All done!';
+      }
+      document.getElementById('message').textContent = msg;
+    }
+
+    this.isMoving = false;
+  }
+
+  // === RENDERING ===
+
+  render() {
+    const ctx = this.ctx;
+
+    // Clear
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw grid
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const c = this.get(x, y);
+        const px = x * CELL;
+        const py = y * CELL;
+        const alt = (x + y) % 2 === 0;
+        this.drawTile(ctx, px, py, c, alt, x, y);
+      }
+    }
+
+    // Draw barrels
+    for (const barrel of this.barrels) {
+      this.drawBarrel(ctx, barrel.renderX, barrel.renderY);
+    }
+
+    // Draw player at render position (smooth)
+    this.drawPlayer(ctx, this.renderX, this.renderY);
+  }
+
+  drawTile(ctx, px, py, c, alt, gx, gy) {
+    switch (c) {
+      case '.':
+        this.drawFloor(ctx, px, py, alt);
+        break;
+      case '#':
+        this.drawWall(ctx, px, py);
+        break;
+      case 'S':
+        this.drawEntry(ctx, px, py);
+        break;
+      case 'X':
+        this.drawExit(ctx, px, py);
+        break;
+      case 'O':
+        this.drawButton(ctx, px, py, this.visitedButtons.has(`${gx},${gy}`));
+        break;
+      case 'G':
+        this.drawGate(ctx, px, py, this.isGateOpen());
+        break;
+      case 'V':
+        if (this.isValveSealed(gx, gy)) {
+          this.drawSealedValve(ctx, px, py);
+        } else {
+          this.drawOpenValve(ctx, px, py);
+        }
+        break;
+      case '>':
+      case '<':
+      case '^':
+      case 'v':
+        this.drawConveyor(ctx, px, py, c);
+        break;
+    }
+  }
+
+  drawFloor(ctx, px, py, alt) {
+    ctx.fillStyle = alt ? COLORS.floorAlt : COLORS.floor;
+    ctx.fillRect(px, py, CELL, CELL);
+    ctx.strokeStyle = '#1f1810';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px, py + CELL / 3);
+    ctx.lineTo(px + CELL, py + CELL / 3);
+    ctx.moveTo(px, py + 2 * CELL / 3);
+    ctx.lineTo(px + CELL, py + 2 * CELL / 3);
+    ctx.stroke();
+  }
+
+  drawWall(ctx, px, py) {
+    ctx.fillStyle = COLORS.wall;
+    ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+    ctx.fillStyle = COLORS.wallHi;
+    ctx.fillRect(px + 3, py + 3, CELL - 6, CELL - 6);
+
+    const rivets = [[6, 6], [CELL - 10, 6], [6, CELL - 10], [CELL - 10, CELL - 10]];
+    for (const [rx, ry] of rivets) {
+      ctx.fillStyle = COLORS.bronzeSh;
+      ctx.beginPath();
+      ctx.arc(px + rx + 3, py + ry + 3, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = COLORS.bronze;
+      ctx.beginPath();
+      ctx.arc(px + rx + 3, py + ry + 3, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawEntry(ctx, px, py) {
+    ctx.fillStyle = '#375540';
+    ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+    ctx.fillStyle = '#64a06e';
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawExit(ctx, px, py) {
+    const open = this.isGateOpen();
+    ctx.fillStyle = open ? COLORS.exit : COLORS.exitLocked;
+    ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+    ctx.fillStyle = open ? '#96dc8c' : '#5a7850';
+    ctx.fillRect(px + 6, py + 6, CELL - 12, CELL - 12);
+
+    if (!open) {
+      ctx.fillStyle = COLORS.bronzeSh;
+      ctx.fillRect(px + CELL/2 - 4, py + CELL/2, 8, 8);
+      ctx.beginPath();
+      ctx.arc(px + CELL/2, py + CELL/2, 5, Math.PI, 0);
+      ctx.strokeStyle = COLORS.bronzeSh;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  drawButton(ctx, px, py, pressed) {
+    this.drawFloor(ctx, px, py, false);
+    ctx.fillStyle = COLORS.bronzeSh;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (pressed) {
+      ctx.fillStyle = COLORS.buttonPressed;
+      ctx.beginPath();
+      ctx.arc(px + CELL / 2, py + CELL / 2 + 2, CELL / 2 - 8, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = COLORS.button;
+      ctx.beginPath();
+      ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e66455';
+      ctx.beginPath();
+      ctx.arc(px + CELL / 2, py + CELL / 2 - 3, CELL / 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawGate(ctx, px, py, open) {
+    if (open) {
+      this.drawFloor(ctx, px, py, true);
+      ctx.fillStyle = COLORS.gate;
+      ctx.fillRect(px + 2, py + 4, 4, CELL - 8);
+      ctx.fillRect(px + CELL - 6, py + 4, 4, CELL - 8);
+    } else {
+      ctx.fillStyle = COLORS.gate;
+      ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+      for (let i = 0; i < 4; i++) {
+        const bx = px + 5 + i * 8;
+        ctx.fillStyle = COLORS.bronze;
+        ctx.fillRect(bx, py + 4, 4, CELL - 8);
+        ctx.strokeStyle = COLORS.bronzeHi;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx + 2, py + 4);
+        ctx.lineTo(bx + 2, py + CELL - 4);
+        ctx.stroke();
+      }
+    }
+  }
+
+  drawOpenValve(ctx, px, py) {
+    this.drawFloor(ctx, px, py, false);
+    ctx.fillStyle = COLORS.valveRim;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.valve;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#190f0c';
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4 - 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Steam puffs
+    ctx.fillStyle = COLORS.steamDanger;
+    for (let i = 0; i < 4; i++) {
+      const sx = px + 8 + (i % 3) * 8;
+      const sy = py - 4 - i * 4;
+      const r = 6 - i;
+      ctx.beginPath();
+      ctx.ellipse(sx + r, sy + r/2, r, r/2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawSealedValve(ctx, px, py) {
+    this.drawFloor(ctx, px, py, false);
+    ctx.fillStyle = COLORS.valveRim;
+    ctx.beginPath();
+    ctx.ellipse(px + CELL / 2, py + CELL / 2 + 2, CELL / 2 - 3, CELL / 2 - 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.barrelSh;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.barrel;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2 - 1, CELL / 2 - 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.barrelHi;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2 - 2, py + CELL / 2 - 4, CELL / 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.bronze;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2 - 1, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawBarrel(ctx, px, py) {
+    ctx.fillStyle = COLORS.barrelSh;
+    ctx.beginPath();
+    ctx.ellipse(px + CELL / 2 + 2, py + CELL / 2 + 2, CELL / 2 - 6, CELL / 2 - 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.barrel;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.barrelHi;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2 - 3, py + CELL / 2 - 4, CELL / 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.bronzeSh;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.bronze;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawConveyor(ctx, px, py, dir) {
+    this.drawFloor(ctx, px, py, false);
+    ctx.fillStyle = COLORS.bronzeSh;
+    ctx.fillRect(px + 4, py + 12, CELL - 8, CELL - 24);
+    ctx.strokeStyle = COLORS.bronzeHi;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px + 5, py + CELL / 2);
+    ctx.lineTo(px + CELL - 5, py + CELL / 2);
+    ctx.stroke();
+
+    const cx = px + CELL / 2;
+    const cy = py + CELL / 2;
+    ctx.fillStyle = COLORS.gold;
+    ctx.beginPath();
+
+    switch (dir) {
+      case '>':
+        ctx.moveTo(cx + 10, cy);
+        ctx.lineTo(cx - 5, cy - 7);
+        ctx.lineTo(cx - 5, cy + 7);
+        break;
+      case '<':
+        ctx.moveTo(cx - 10, cy);
+        ctx.lineTo(cx + 5, cy - 7);
+        ctx.lineTo(cx + 5, cy + 7);
+        break;
+      case '^':
+        ctx.moveTo(cx, cy - 10);
+        ctx.lineTo(cx - 7, cy + 5);
+        ctx.lineTo(cx + 7, cy + 5);
+        break;
+      case 'v':
+        ctx.moveTo(cx, cy + 10);
+        ctx.lineTo(cx - 7, cy - 5);
+        ctx.lineTo(cx + 7, cy - 5);
+        break;
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  drawPlayer(ctx, px, py) {
+    // Glow
+    ctx.fillStyle = 'rgba(255, 210, 140, 0.3)';
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = COLORS.player;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c8a064';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Eyes
+    ctx.fillStyle = '#32261c';
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2 - 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
+    ctx.arc(px + CELL / 2 + 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smile
+    ctx.strokeStyle = '#32261c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2 + 2, 6, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+  }
+
+  // === INPUT HANDLING ===
+
+  setupInput() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    // Touch events - on whole document for easier swiping
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+
+      const diffX = touchStartX - touchEndX;
+      const diffY = touchStartY - touchEndY;
+      const threshold = 30;  // Minimum swipe distance
+      const restraint = 100; // Maximum perpendicular movement
+
+      // Ignore if tap was on a button
+      if (e.target.tagName === 'BUTTON') return;
+
+      if (this.won) {
+        if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
+          if (this.currentLevel < LEVELS.length - 1) {
+            this.loadLevel(this.currentLevel + 1);
+          }
+        }
+        return;
+      }
+
+      // Determine dominant direction with restraint check
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (Math.abs(diffX) > threshold && Math.abs(diffY) < restraint) {
+          this.handleMove(diffX > 0 ? -1 : 1, 0);
+        }
+      } else {
+        if (Math.abs(diffY) > threshold && Math.abs(diffX) < restraint) {
+          this.handleMove(0, diffY > 0 ? -1 : 1);
+        }
+      }
+    }, { passive: true });
+
+    // Keyboard events
+    document.addEventListener('keydown', (e) => {
+      if (this.won) {
+        if ((e.key === 'ArrowRight' || e.key === 'Enter') && this.currentLevel < LEVELS.length - 1) {
+          this.loadLevel(this.currentLevel + 1);
+        }
+        return;
+      }
+
+      const keyMap = {
+        'ArrowUp': [0, -1],
+        'ArrowDown': [0, 1],
+        'ArrowLeft': [-1, 0],
+        'ArrowRight': [1, 0],
+        'w': [0, -1], 'W': [0, -1],
+        's': [0, 1], 'S': [0, 1],
+        'a': [-1, 0], 'A': [-1, 0],
+        'd': [1, 0], 'D': [1, 0]
+      };
+
+      if (keyMap[e.key]) {
+        this.handleMove(...keyMap[e.key]);
+        e.preventDefault();
+      }
+
+      if (e.key === 'r' || e.key === 'R') {
+        this.loadLevel(this.currentLevel);
+      }
+    });
+
+    // Button events
+    document.getElementById('restart').addEventListener('click', () => {
+      this.loadLevel(this.currentLevel);
+    });
+
+    document.getElementById('prev').addEventListener('click', () => {
+      if (this.currentLevel > 0) {
+        this.loadLevel(this.currentLevel - 1);
+      }
+    });
+
+    document.getElementById('next').addEventListener('click', () => {
+      if (this.currentLevel < LEVELS.length - 1) {
+        this.loadLevel(this.currentLevel + 1);
+      }
+    });
+  }
+}
+
+// Start game
+const game = new Game();
+
+// Handle resize/orientation change
+window.addEventListener('resize', () => {
+  game.loadLevel(game.currentLevel);
+});
+</script>
+</body>
+</html>
