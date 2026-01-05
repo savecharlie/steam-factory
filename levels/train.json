@@ -3,31 +3,58 @@
     "name": "Movement",
     "grid": [
       "#S###",
-      "#..##",
+      "#...#",
       "##..#",
+      "#..##",
+      "#...#",
       "#.#.#",
-      "#...#",
       "#..##",
       "##..#",
-      "#...#",
       "###X#"
     ],
-    "par": 11
+    "par": 11,
+    "solution": [
+      "down",
+      "right",
+      "down",
+      "left",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down",
+      "right",
+      "down"
+    ]
   },
   {
     "name": "Barrel",
     "grid": [
       "#S###",
       "#...#",
-      "##..#",
-      "#...#",
+      "#..B#",
+      "###.#",
       "#...#",
       "#...#",
       "#..##",
       "##..#",
       "###X#"
     ],
-    "par": 9
+    "par": 12,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "right",
+      "down",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down",
+      "right",
+      "down"
+    ]
   },
   {
     "name": "Button",
@@ -35,59 +62,126 @@
       "#S###",
       "#..##",
       "##..#",
-      "#.#.#",
       "#...#",
+      "###.#",
       "#.BO#",
       "#...#",
-      "##.G#",
+      "#..G#",
       "###X#"
     ],
-    "par": 12
+    "par": 12,
+    "solution": [
+      "down",
+      "right",
+      "down",
+      "right",
+      "down",
+      "down",
+      "left",
+      "up",
+      "right",
+      "down",
+      "right",
+      "down"
+    ]
   },
   {
     "name": "Valve",
     "grid": [
       "#S###",
       "#...#",
-      "##B.#",
-      "#.V##",
-      "#.###",
+      "#.BV#",
+      "###.#",
+      "#...#",
       "#...#",
       "#..##",
       "##..#",
       "###X#"
     ],
-    "par": 12
+    "par": 12,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "right",
+      "down",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down",
+      "right",
+      "down"
+    ]
   },
   {
     "name": "Conveyor",
     "grid": [
       "#S###",
-      "#>.##",
+      "#>..#",
       "##..#",
+      "#..##",
       "#.#.#",
-      "#...#",
       "#..##",
       "##..#",
       "#...#",
       "###X#"
     ],
-    "par": 10
+    "par": 10,
+    "solution": [
+      "right",
+      "down",
+      "left",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down",
+      "right",
+      "down"
+    ]
   },
   {
     "name": "Combo",
     "grid": [
       "#S####",
-      "#..#.#",
-      "#..#.#",
-      "##..##",
+      "#...##",
+      "##...#",
       "#....#",
       "#..#.#",
-      "#...O#",
-      "##..G#",
       "#....#",
+      "##.BO#",
+      "#....#",
+      "#...G#",
       "####X#"
     ],
-    "par": 14
+    "par": 25,
+    "solution": [
+      "down",
+      "right",
+      "down",
+      "right",
+      "up",
+      "left",
+      "down",
+      "right",
+      "up",
+      "left",
+      "up",
+      "right",
+      "down",
+      "left",
+      "down",
+      "right",
+      "left",
+      "up",
+      "right",
+      "down",
+      "up",
+      "left",
+      "down",
+      "right",
+      "down"
+    ]
   }
 ]

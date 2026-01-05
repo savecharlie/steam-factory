@@ -118,46 +118,191 @@ class Level:
 
     def solve(self):
         """
-        BFS solver. Returns (moves, path) or (None, None) if unsolvable.
-        Tracks: position, button pressed (momentary), gate was open during move
+        BFS solver with full barrel/valve/button simulation.
+        State: (player_pos, barrel_positions, sealed_valves)
+        Returns (moves, path) or (None, None) if unsolvable.
         """
         if not self.entry or not self.exit:
             return None, None
 
-        has_gate = any(self.get(x, y) == 'G' for x in range(self.w) for y in range(self.h))
+        # Find all barrels, buttons, valves, gate
+        barrels = set()
+        buttons = set()
+        valves = set()
+        has_gate = False
+        gate_pos = None
 
-        # State: (position, on_button)
+        for y in range(self.h):
+            for x in range(self.w):
+                c = self.get(x, y)
+                if c == 'B':
+                    barrels.add((x, y))
+                elif c == 'O':
+                    buttons.add((x, y))
+                elif c == 'V':
+                    valves.add((x, y))
+                elif c == 'G':
+                    has_gate = True
+                    gate_pos = (x, y)
+
+        # State: (player_pos, frozenset of barrel positions, frozenset of sealed valves)
+        start_state = (self.entry, frozenset(barrels), frozenset())
         visited = set()
-        start_state = (self.entry, False)
         queue = deque([(start_state, 0, [self.entry])])
 
         while queue:
-            (pos, on_button), moves, path = queue.popleft()
+            (pos, barrel_set, sealed_set), moves, path = queue.popleft()
 
-            # Check if on button
-            currently_on_button = (self.get(pos[0], pos[1]) == 'O')
-            gate_open = currently_on_button or not has_gate
-
-            # Check win: on exit with gate open (or was open when we moved here)
+            # Check win
             if pos == self.exit:
-                # For momentary buttons: we can pass through gate if we STARTED on button
-                # This is simplified - actual game uses gateWasOpen
-                if gate_open or on_button:
-                    return moves, path
+                return moves, path
 
-            state = (pos, currently_on_button)
-            if state in visited:
+            state_key = (pos, barrel_set, sealed_set)
+            if state_key in visited:
                 continue
-            visited.add(state)
+            visited.add(state_key)
+
+            # Gate is open if any barrel is on a button, or player is on button
+            barrels_on_buttons = barrel_set & buttons
+            player_on_button = pos in buttons
+            gate_open = bool(barrels_on_buttons) or player_on_button or not has_gate
 
             for dx, dy in DIRS:
-                new_pos = self.slide(pos[0], pos[1], dx, dy, gate_open)
-                if new_pos:
-                    new_state = (new_pos, currently_on_button)
-                    if new_state not in visited:
-                        queue.append((new_state, moves + 1, path + [new_pos]))
+                # Simulate slide with barrel pushing
+                result = self._simulate_move(pos, dx, dy, barrel_set, sealed_set,
+                                            buttons, valves, gate_open, gate_pos)
+                if result is None:
+                    continue  # Death or invalid
+
+                new_pos, new_barrels, new_sealed = result
+
+                new_state = (new_pos, new_barrels, new_sealed)
+                if new_state not in visited:
+                    queue.append((new_state, moves + 1, path + [new_pos]))
 
         return None, None
+
+    def _simulate_move(self, start, dx, dy, barrels, sealed, buttons, valves, gate_open, gate_pos):
+        """
+        Simulate a move with barrel pushing.
+        Returns (new_pos, new_barrels, new_sealed) or None if death/invalid.
+        """
+        x, y = start
+        barrels = set(barrels)  # Make mutable copy
+        sealed = set(sealed)
+
+        # Track if we started on button for mid-slide gate closing
+        started_on_button = start in buttons
+        left_button = False
+
+        for _ in range(50):  # Max slide distance
+            nx, ny = x + dx, y + dy
+
+            # Mid-slide gate closing
+            if started_on_button and not left_button and (x, y) not in buttons:
+                left_button = True
+                # Check if any barrel is on button
+                if not (barrels & buttons):
+                    gate_open = False
+
+            # Check what's at next position
+            c = self.get(nx, ny)
+
+            # Wall
+            if c == '#':
+                return ((x, y), frozenset(barrels), frozenset(sealed))
+
+            # Gate (closed)
+            if (nx, ny) == gate_pos and not gate_open:
+                return ((x, y), frozenset(barrels), frozenset(sealed))
+
+            # Barrel - try to push
+            if (nx, ny) in barrels:
+                push_result = self._push_barrel(nx, ny, dx, dy, barrels, sealed,
+                                                buttons, valves, gate_open, gate_pos)
+                if push_result is None:
+                    # Can't push - stop here
+                    return ((x, y), frozenset(barrels), frozenset(sealed))
+                barrels, sealed = push_result
+                # Player stops where barrel was
+                return ((nx, ny), frozenset(barrels), frozenset(sealed))
+
+            # Unsealed valve - death!
+            if c == 'V' and (nx, ny) not in sealed:
+                return None
+
+            # Move to next cell
+            x, y = nx, ny
+
+            # Button stops player
+            if (x, y) in buttons:
+                return ((x, y), frozenset(barrels), frozenset(sealed))
+
+            # Exit stops player
+            if (x, y) == self.exit:
+                return ((x, y), frozenset(barrels), frozenset(sealed))
+
+            # Conveyor changes direction
+            c = self.get(x, y)
+            if c in '><^v':
+                dirs = {'>': (1, 0), '<': (-1, 0), '^': (0, -1), 'v': (0, 1)}
+                dx, dy = dirs[c]
+
+        return ((x, y), frozenset(barrels), frozenset(sealed))
+
+    def _push_barrel(self, bx, by, dx, dy, barrels, sealed, buttons, valves, gate_open, gate_pos):
+        """
+        Push barrel at (bx, by) in direction (dx, dy).
+        Returns (new_barrels, new_sealed) or None if can't push.
+        """
+        # Check first cell in push direction
+        nx, ny = bx + dx, by + dy
+        c = self.get(nx, ny)
+
+        # Can't push into wall
+        if c == '#':
+            return None
+
+        # Can't push into closed gate
+        if (nx, ny) == gate_pos and not gate_open:
+            return None
+
+        # Can't push into another barrel
+        if (nx, ny) in barrels:
+            return None
+
+        # Remove barrel from old position
+        barrels = set(barrels)
+        barrels.discard((bx, by))
+        sealed = set(sealed)
+
+        # Slide barrel until it hits something
+        x, y = nx, ny
+        while True:
+            # Check if barrel lands on button
+            if (x, y) in buttons:
+                barrels.add((x, y))
+                return (barrels, sealed)
+
+            # Check if barrel lands on valve (seals it)
+            if (x, y) in valves and (x, y) not in sealed:
+                sealed.add((x, y))
+                barrels.add((x, y))
+                return (barrels, sealed)
+
+            # Check next cell
+            next_x, next_y = x + dx, y + dy
+            next_c = self.get(next_x, next_y)
+
+            # Stop at wall, gate, or another barrel
+            if next_c == '#' or (next_x, next_y) in barrels or (next_x, next_y) == gate_pos:
+                barrels.add((x, y))
+                return (barrels, sealed)
+
+            x, y = next_x, next_y
+
+        barrels.add((x, y))
+        return (barrels, sealed)
 
     def to_string(self):
         return '\n'.join(''.join(row) for row in self.grid)
@@ -249,53 +394,57 @@ def simulate_barrel_push(lv, bx, by, dx, dy):
 
 def place_barrel_blocking_exit(lv, path):
     """
-    Create a corridor with barrel that player must push to pass through.
+    Place a barrel on the solution path that player must push to continue.
 
-    Layout:
-    - Wall creates a vertical corridor in column 1
-    - Barrel in the corridor blocks progress
-    - Player pushes barrel down to continue
-    - Then navigates to exit
+    Requirements:
+    - Barrel on floor tile on the path
+    - Player can approach from one side to push
+    - Barrel can slide (space in push direction)
+    - After push, player can still reach exit
     """
-    if not path or len(path) < 3:
+    if not path or len(path) < 4:
         return lv
 
-    ex, ey = lv.exit
+    # Try each position on the path (middle section)
+    for i in range(2, len(path) - 2):
+        bx, by = path[i]
 
-    # Create a vertical corridor by adding wall in column 2
-    # Barrel in column 1 forces player to push it
-    corridor_x = 1
-    wall_x = 2
+        if lv.get(bx, by) != '.':
+            continue
 
-    # Add wall to create corridor (rows 2-6)
-    for y in range(2, ey - 2):
-        if lv.get(wall_x, y) == '.':
-            lv.set(wall_x, y, '#')
+        # Try each push direction
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            # Player approaches from opposite direction
+            px, py = bx - dx, by - dy
 
-    # Place barrel in corridor
-    barrel_y = 4
-    if lv.get(corridor_x, barrel_y) == '.':
-        lv.set(corridor_x, barrel_y, 'B')
+            # Check player can stand there (floor, not wall)
+            if lv.get(px, py) not in ['.', 'S']:
+                continue
 
-    # Verify: after pushing barrel, can reach exit
-    test_lv = lv.copy()
-    test_lv.set(corridor_x, barrel_y, '.')
+            # Check barrel can slide (at least one cell in push direction)
+            slide_x, slide_y = bx + dx, by + dy
+            if lv.get(slide_x, slide_y) not in ['.']:
+                continue
 
-    # Barrel slides down when pushed
-    stop_y = barrel_y + 1
-    while stop_y < ey - 1 and lv.get(corridor_x, stop_y + 1) == '.':
-        stop_y += 1
-    test_lv.set(corridor_x, stop_y, 'B')
+            # Place barrel and verify solvability
+            test_lv = lv.copy()
+            test_lv.set(bx, by, 'B')
 
-    moves, _ = test_lv.solve()
-    if moves is not None:
-        return lv
+            # Simulate: barrel pushed, where does it stop?
+            final_x, final_y = slide_x, slide_y
+            while test_lv.get(final_x + dx, final_y + dy) == '.':
+                final_x += dx
+                final_y += dy
 
-    # Undo all changes
-    for y in range(2, ey - 2):
-        if lv.get(wall_x, y) == '#':
-            lv.set(wall_x, y, '.')
-    lv.set(corridor_x, barrel_y, '.')
+            # Test with barrel in final position
+            test_lv.set(bx, by, '.')  # Clear original
+            test_lv.set(final_x, final_y, 'B')  # Barrel stops here
+
+            moves, _ = test_lv.solve()
+            if moves is not None:
+                # Valid! Place the barrel
+                lv.set(bx, by, 'B')
+                return lv
 
     return lv
 
@@ -303,76 +452,42 @@ def place_barrel_blocking_exit(lv, path):
 def place_button_gate(lv, path):
     """
     Place button on path, gate before exit.
-    For momentary buttons: button → clear path → gate → exit must align vertically.
-    We may need to clear zigzag walls to make this work.
+    Gate MUST block the only path to exit - no bypassing!
     """
     if not path or len(path) < 3:
         return lv
 
     ex, ey = lv.exit
+    gate_y = ey - 1
+    button_y = gate_y - 2
 
-    # Strategy: Gate above exit, button above gate, clear walls between
-    # This creates a vertical runway: button → gate → exit
+    if button_y < 1 or gate_y < 1:
+        return lv
 
-    # Find best column for the runway (prefer exit column)
-    for runway_x in [ex, ex - 1, ex + 1, 1, lv.w - 2]:
-        if runway_x < 1 or runway_x >= lv.w - 1:
-            continue
+    test_lv = lv.copy()
 
-        # Clear the runway column from some point to exit
-        # Gate goes 1 above exit, button goes higher up
-        gate_y = ey - 1
-        button_y = gate_y - 2  # Give some distance
+    # CRITICAL: Wall off entire gate row except exit column
+    # This ensures gate is the ONLY way to reach exit
+    for x in range(1, lv.w - 1):
+        if x != ex:
+            test_lv.set(x, gate_y, '#')
 
-        # Bounds check
-        if button_y < 1 or gate_y < 1:
-            continue
+    # Place gate directly above exit
+    test_lv.set(ex, gate_y, 'G')
 
-        # Make a copy to test
-        test_lv = lv.copy()
+    # Clear path from button to gate in exit column
+    for y in range(button_y, gate_y):
+        if test_lv.get(ex, y) == '#':
+            test_lv.set(ex, y, '.')
 
-        # Clear vertical path from button to exit
-        for y in range(button_y, ey):
-            if test_lv.get(runway_x, y) == '#':
-                test_lv.set(runway_x, y, '.')
+    # Place button above gate
+    test_lv.set(ex, button_y, 'O')
 
-        # Place gate
-        test_lv.set(runway_x, gate_y, 'G')
-
-        # Place button
-        test_lv.set(runway_x, button_y, 'O')
-
-        # Test if solvable
-        new_moves, new_path = test_lv.solve()
-        if new_moves is not None:
-            # Success! Copy changes back
-            lv.grid = test_lv.grid
-            return lv
-
-    # Fallback: try original simpler approach
-    # (gate and button on existing path positions)
-    for pos in path[1:-1]:
-        bx, by = pos
-        if lv.get(bx, by) != '.':
-            continue
-
-        # Try gate directly below button
-        for gate_dy in range(1, 4):
-            gx, gy = bx, by + gate_dy
-            if 0 < gx < lv.w - 1 and 0 < gy < lv.h - 1:
-                if lv.get(gx, gy) == '.' or lv.get(gx, gy) == '#':
-                    test_lv = lv.copy()
-                    # Clear path from button to gate
-                    for y in range(by + 1, gy + 1):
-                        if test_lv.get(bx, y) == '#':
-                            test_lv.set(bx, y, '.')
-                    test_lv.set(gx, gy, 'G')
-                    test_lv.set(bx, by, 'O')
-
-                    new_moves, _ = test_lv.solve()
-                    if new_moves is not None:
-                        lv.grid = test_lv.grid
-                        return lv
+    # Test if solvable
+    new_moves, new_path = test_lv.solve()
+    if new_moves is not None:
+        lv.grid = test_lv.grid
+        return lv
 
     return lv
 
@@ -382,62 +497,55 @@ def place_barrel_on_button(lv, path):
     Place button, gate, AND barrel where the solution requires pushing
     the barrel onto the button to hold the gate open.
 
-    KEY TEACHING REQUIREMENT:
-    Player must FIRST step on button (learn it's momentary), THEN use barrel.
-
-    CRITICAL: In sliding puzzles, player can only STOP at:
-    - Against a wall/barrel
-    - On a button
-    - On the exit
-
-    So we must ensure player can STOP at the push position!
+    KEY: Gate must be the ONLY way to reach exit - no bypassing!
     """
     if not path or len(path) < 3:
         return lv
 
     ex, ey = lv.exit
 
-    # Place gate above exit
+    # Gate goes directly above exit - this is the ONLY entrance
     gate_y = ey - 1
     if gate_y < 3:
         return lv
 
-    # Try different barrel/button arrangements until we find one that's solvable
-    # We need player to be able to STOP at a position to push barrel onto button
+    test_lv = lv.copy()
 
-    # Strategy: Put button in exit column, barrel to the left
-    # Add a wall so player can STOP at push position
-    button_y = ey - 3
+    # CRITICAL: Wall off ALL cells in gate row EXCEPT the gate position
+    # This ensures gate is the ONLY way to reach exit
+    for x in range(1, lv.w - 1):
+        if x != ex:
+            test_lv.set(x, gate_y, '#')
+
+    # Place gate directly above exit
+    test_lv.set(ex, gate_y, 'G')
+
+    # Button and barrel above the gate
+    button_y = gate_y - 2
     button_x = ex
     barrel_x = button_x - 1
     barrel_y = button_y
-    push_x = barrel_x - 1  # Where player needs to stop to push right
+    push_x = barrel_x - 1
 
-    if barrel_x < 1 or push_x < 1:
+    if barrel_x < 1 or push_x < 1 or button_y < 1:
         return lv
 
-    test_lv = lv.copy()
-
-    # Clear path in exit column from button to exit
-    for y in range(button_y, ey):
+    # Clear path from button to gate
+    for y in range(button_y, gate_y):
         if test_lv.get(ex, y) == '#':
             test_lv.set(ex, y, '.')
 
-    # CRITICAL: Add a wall so player can STOP at push position
-    # Player sliding right needs wall at push_x-1 OR
-    # Player sliding down needs wall at (push_x, push_y-1)
-    # Let's add wall to the left of push position so player sliding right stops there
+    # Add wall so player can STOP at push position
     if push_x > 1 and test_lv.get(push_x - 1, barrel_y) == '.':
         test_lv.set(push_x - 1, barrel_y, '#')
 
-    # Also ensure there's clear floor at push position
+    # Ensure clear floor at push position
     if test_lv.get(push_x, barrel_y) == '#':
         test_lv.set(push_x, barrel_y, '.')
 
-    # Place pieces
-    test_lv.set(ex, gate_y, 'G')           # Gate guards exit
-    test_lv.set(button_x, button_y, 'O')   # Button on path to gate
-    test_lv.set(barrel_x, barrel_y, 'B')   # Barrel adjacent, pushable onto button
+    # Place button and barrel
+    test_lv.set(button_x, button_y, 'O')
+    test_lv.set(barrel_x, barrel_y, 'B')
 
     # FULL VERIFICATION using BFS that simulates barrel pushing
     # Test: Can player push barrel onto button, then reach exit?
@@ -666,11 +774,20 @@ def generate_level(config, time_budget=15.0):
         # Special case: barrel must be pushed onto button
         if config.get('require_barrel_on_button'):
             lv = place_barrel_on_button(lv, path)
-            # This places barrel, button, AND gate together
-            # Solver can't verify, but layout guarantees solution
+            # Verify it actually placed the gate and is solvable
+            has_gate = any(lv.get(x, y) == 'G' for x in range(lv.w) for y in range(lv.h))
+            if not has_gate:
+                continue  # placement failed, try another layout
+            moves, path = lv.solve()
+            if moves is None:
+                continue  # Unsolvable, try another layout
 
         elif config.get('require_gate'):
             lv = place_button_gate(lv, path)
+            # Verify gate was actually placed
+            has_gate = any(lv.get(x, y) == 'G' for x in range(lv.w) for y in range(lv.h))
+            if not has_gate:
+                continue  # placement failed, try another layout
             # Re-solve after button/gate
             moves, path = lv.solve()
             if moves is None:
@@ -683,15 +800,20 @@ def generate_level(config, time_budget=15.0):
             if moves is None:
                 continue
 
-        # Barrel/valve break the solver (it can't simulate pushing/sealing)
-        # Place these LAST with verification
+        # Place barrel/valve and verify still solvable
         if config.get('require_barrel') and not config.get('require_barrel_on_button'):
             lv = place_barrel_blocking_exit(lv, path)
-            # This function verifies barrel can be pushed and exit reached after
+            # Verify solvable with new barrel-aware solver
+            moves, path = lv.solve()
+            if moves is None:
+                continue  # Unsolvable, try another layout
 
         if config.get('require_valve'):
             lv = place_valve_and_barrel(lv, path)
-            # Similar to barrel - solver can't handle valve sealing
+            # Verify solvable with new valve-aware solver
+            moves, path = lv.solve()
+            if moves is None:
+                continue  # Unsolvable, try another layout
 
         # Add some random walls to increase complexity
         if config.get('add_random_walls', False):
@@ -709,12 +831,10 @@ def generate_level(config, time_budget=15.0):
         # Cleanup unnecessary walls (but keep special pieces)
         lv = cleanup_unnecessary(lv)
 
-        # Score by path length (maximize!)
-        # For barrel/valve levels, use initial moves since solver can't verify
-        final_moves, _ = lv.solve()
+        # Final verification - must be solvable
+        final_moves, final_path = lv.solve()
         if final_moves is None:
-            # Barrel/valve level - use initial moves estimate
-            final_moves = initial_moves + 1  # Assume pushing adds 1 move
+            continue  # Unsolvable after cleanup, skip
 
         attempts += 1
         if final_moves >= min_moves and final_moves > best_moves:
@@ -785,8 +905,7 @@ TRAIN_CONFIG = [
         'width': 6, 'height': 10,
         'min_moves': 5,
         'use_zigzag': True,
-        'require_barrel': True,
-        'require_gate': True,
+        'require_barrel_on_button': True,  # Places barrel, button, AND gate together
         'add_random_walls': True,
     },
 ]

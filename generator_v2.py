@@ -394,6 +394,14 @@ def push_barrel(lv: Level, bx: int, by: int, dx: int, dy: int,
             new_barrels.add((x, y))
             return (new_barrels, new_sealed)
 
+        # Teleporter - barrel warps through
+        cell = lv.get(x, y)
+        if cell == '1' or cell == '2':
+            target_char = '2' if cell == '1' else '1'
+            targets = lv.find_all(target_char)
+            if targets:
+                x, y = targets[0]
+
         # Check next cell
         next_x, next_y = x + dx, y + dy
         next_cell = lv.get(next_x, next_y)

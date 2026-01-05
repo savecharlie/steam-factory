@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+levels_bidirectional_all.json
+levels_v2_all.json
+levels_endstate.json
