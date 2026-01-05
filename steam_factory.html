@@ -32,46 +32,158 @@
       color: #888;
       font-size: 14px;
       margin-top: 10px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
     }
+    #hint-btn, #restart-btn {
+      background: #4b3a2a;
+      color: #d4a847;
+      border: 2px solid #6b5040;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #hint-btn:hover, #restart-btn:hover {
+      background: #6b5040;
+    }
+    #hint-btn:active, #restart-btn:active {
+      background: #825a2d;
+    }
+    #reverse-btn {
+      background: #2a4b3a;
+      color: #47d4a8;
+      border: 2px solid #40705b;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    #reverse-btn:hover { background: #3a6b50; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #d4a847;
+      font-size: 18px;
+      display: none;
+    }
+    #reject-btn {
+      background: #5a2a2a;
+      color: #d4a847;
+      border: 2px solid #8a4040;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #reject-btn:hover { background: #7a3a3a; }
+    #reject-btn:active { background: #9a4a4a; }
+    #rating-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #rating-overlay.show { display: flex; }
+    #rating-title {
+      color: #d4a847;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+    #rating-stars {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 15px;
+    }
+    .star-btn {
+      background: #3a3028;
+      color: #888;
+      border: 2px solid #4b3a2a;
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .star-btn:hover, .star-btn.lit {
+      background: #6b5040;
+      color: #ffc864;
+      border-color: #d4a847;
+    }
+    #rating-skip {
+      color: #666;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #rating-skip:hover { color: #888; }
   </style>
 </head>
 <body>
   <div id="header">Loading...</div>
   <canvas id="game"></canvas>
-  <div id="footer">Swipe or arrow keys to move</div>
+  <div id="footer">
+    <span>Swipe or arrow keys</span>
+    <button id="reject-btn">Skip</button>
+    <button id="restart-btn">Restart</button>
+    <button id="hint-btn">Hint</button>
+    <button id="reverse-btn" style="display:none">Reverse!</button>
+    <button id="export-btn">Export</button>
+  </div>
+  <div id="loading">Generating levels...</div>
+  <div id="rating-overlay">
+    <div id="rating-title">Rate this level</div>
+    <div id="rating-stars"></div>
+    <div id="rating-skip">skip rating</div>
+  </div>
 
   <script>
-// === LEVELS (from train.json) ===
-const LEVELS = [
+// === TUTORIAL LEVELS (hardcoded) ===
+const TUTORIAL_LEVELS = [
   {
     "name": "Movement",
     "grid": [
       "#S###",
-      "#..##",
+      "#...#",
       "##..#",
+      "#..##",
+      "#...#",
       "#.#.#",
-      "#...#",
       "#..##",
       "##..#",
-      "#...#",
       "###X#"
     ],
-    "par": 11
+    "par": 11,
+    "solution": ["down","right","down","left","down","left","down","right","down","right","down"]
   },
   {
     "name": "Barrel",
     "grid": [
       "#S###",
       "#...#",
-      "##..#",
-      "#...#",
+      "#..B#",
+      "###.#",
       "#...#",
       "#...#",
       "#..##",
       "##..#",
       "###X#"
     ],
-    "par": 9
+    "par": 12,
+    "solution": ["down","right","up","right","down","down","left","down","right","down","right","down"]
   },
   {
     "name": "Button",
@@ -79,82 +191,1278 @@ const LEVELS = [
       "#S###",
       "#..##",
       "##..#",
-      "#.#.#",
       "#...#",
+      "###.#",
       "#.BO#",
       "#...#",
-      "##.G#",
+      "#..G#",
       "###X#"
     ],
-    "par": 12
+    "par": 12,
+    "solution": ["down","right","down","right","down","down","left","up","right","down","right","down"]
   },
   {
     "name": "Valve",
     "grid": [
       "#S###",
       "#...#",
-      "##B.#",
-      "#.V##",
-      "#.###",
+      "#.BV#",
+      "###.#",
+      "#...#",
       "#...#",
       "#..##",
       "##..#",
       "###X#"
     ],
-    "par": 12
+    "par": 12,
+    "solution": ["down","right","up","right","down","down","left","down","right","down","right","down"]
   },
   {
     "name": "Conveyor",
     "grid": [
       "#S###",
-      "#>.##",
+      "#>..#",
       "##..#",
+      "#..##",
       "#.#.#",
-      "#...#",
       "#..##",
       "##..#",
       "#...#",
       "###X#"
     ],
-    "par": 10
+    "par": 10,
+    "solution": ["right","down","left","down","left","down","right","down","right","down"]
   },
   {
     "name": "Combo",
     "grid": [
       "#S####",
-      "#..#.#",
-      "#..#.#",
-      "##..##",
+      "#...##",
+      "##...#",
       "#....#",
       "#..#.#",
-      "#...O#",
-      "##..G#",
       "#....#",
+      "##.BO#",
+      "#....#",
+      "#...G#",
       "####X#"
     ],
-    "par": 14
+    "par": 25,
+    "solution": ["down","right","down","right","up","left","down","right","up","left","up","right","down","left","down","right","left","up","right","down","up","left","down","right","down"]
   }
 ];
+
+// === JAVASCRIPT LEVEL GENERATOR ===
+const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];  // Up, Down, Left, Right
+const DIR_NAMES = ['up', 'down', 'left', 'right'];
+
+class GeneratorLevel {
+  constructor(w, h) {
+    this.w = w;
+    this.h = h;
+    this.grid = [];
+    for (let y = 0; y < h; y++) {
+      this.grid.push(new Array(w).fill('.'));
+    }
+    this.entry = null;
+    this.exit = null;
+  }
+
+  get(x, y) {
+    if (x >= 0 && x < this.w && y >= 0 && y < this.h) {
+      return this.grid[y][x];
+    }
+    return '#';
+  }
+
+  findCell(char) {
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (this.grid[y][x] === char) return [x, y];
+      }
+    }
+    return null;
+  }
+
+  set(x, y, c) {
+    if (x >= 0 && x < this.w && y >= 0 && y < this.h) {
+      this.grid[y][x] = c;
+      if (c === 'S') this.entry = [x, y];
+      else if (c === 'X') this.exit = [x, y];
+    }
+  }
+
+  copy() {
+    const lv = new GeneratorLevel(this.w, this.h);
+    for (let y = 0; y < this.h; y++) {
+      lv.grid[y] = [...this.grid[y]];
+    }
+    lv.entry = this.entry ? [...this.entry] : null;
+    lv.exit = this.exit ? [...this.exit] : null;
+    return lv;
+  }
+
+  toString() {
+    return this.grid.map(row => row.join('')).join('\n');
+  }
+
+  toGridArray() {
+    return this.grid.map(row => row.join(''));
+  }
+}
+
+// State key for BFS visited set - numeric encoding for performance
+// Uses cell indices instead of strings: idx = y * width + x
+function stateKey(posIdx, barrels, sealedMask) {
+  // Barrels as sorted array of indices, packed into number
+  const sorted = [...barrels].sort((a, b) => a - b);
+  let key = posIdx;
+  for (const b of sorted) {
+    key = key * 256 + b;  // 8 bits per barrel (max 256 cells)
+  }
+  return key * 16 + sealedMask;  // 4 bits for sealed valves
+}
+
+// Helper: convert x,y to cell index
+function cellIdx(x, y, w) { return y * w + x; }
+function idxToXY(idx, w) { return [idx % w, Math.floor(idx / w)]; }
+
+// BFS Solver with barrel/valve/button simulation - optimized with numeric encoding
+function solveLevel(level) {
+  if (!level.entry || !level.exit) return null;
+
+  const w = level.w;
+  const MAX_DEPTH = 100;  // Depth limit to prevent runaway searches
+
+  // Find all barrels, buttons, valves, gate - using cell indices
+  const barrels = new Set();      // Set<number> of cell indices
+  const buttons = new Set();      // Set<number> of cell indices
+  const valves = [];              // Array of {idx, bit} for valve positions
+  let valveMap = new Map();       // idx -> bit position for sealed mask
+  let hasGate = false;
+  let gateIdx = -1;
+
+  let valveBit = 0;
+  for (let y = 0; y < level.h; y++) {
+    for (let x = 0; x < level.w; x++) {
+      const c = level.get(x, y);
+      const idx = cellIdx(x, y, w);
+      if (c === 'B') barrels.add(idx);
+      else if (c === 'O') buttons.add(idx);
+      else if (c === 'V') {
+        valves.push(idx);
+        valveMap.set(idx, 1 << valveBit);
+        valveBit++;
+      }
+      else if (c === 'G') {
+        hasGate = true;
+        gateIdx = idx;
+      }
+    }
+  }
+
+  const entryIdx = cellIdx(level.entry[0], level.entry[1], w);
+  const exitIdx = cellIdx(level.exit[0], level.exit[1], w);
+
+  // State: [posIdx, barrelSet, sealedMask, moves, path]
+  // path stores [x,y] pairs for direction extraction at end
+  const startState = [entryIdx, new Set(barrels), 0, 0, [level.entry]];
+  const visited = new Set();
+  const queue = [startState];
+
+  while (queue.length > 0) {
+    const [posIdx, barrelSet, sealedMask, moves, path] = queue.shift();
+
+    // Depth limit
+    if (moves > MAX_DEPTH) continue;
+
+    // Win check
+    if (posIdx === exitIdx) {
+      // Convert path to directions
+      const dirs = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const dx = path[i+1][0] - path[i][0];
+        const dy = path[i+1][1] - path[i][1];
+        if (dx > 0) dirs.push('right');
+        else if (dx < 0) dirs.push('left');
+        else if (dy > 0) dirs.push('down');
+        else dirs.push('up');
+      }
+      return { moves, path, solution: dirs };
+    }
+
+    const sk = stateKey(posIdx, barrelSet, sealedMask);
+    if (visited.has(sk)) continue;
+    visited.add(sk);
+
+    // Gate open if any barrel on button or player on button
+    let gateOpen = !hasGate || buttons.has(posIdx);
+    if (!gateOpen) {
+      for (const b of barrelSet) {
+        if (buttons.has(b)) { gateOpen = true; break; }
+      }
+    }
+
+    const [px, py] = idxToXY(posIdx, w);
+
+    for (let d = 0; d < 4; d++) {
+      const [dx, dy] = DIRS[d];
+      const result = simulateMoveOpt(level, px, py, dx, dy, barrelSet, sealedMask,
+                                      buttons, valveMap, gateOpen, gateIdx, w);
+      if (!result) continue;  // Death or invalid
+
+      const [newPosIdx, newBarrels, newSealedMask] = result;
+      const newSk = stateKey(newPosIdx, newBarrels, newSealedMask);
+      if (!visited.has(newSk)) {
+        const [nx, ny] = idxToXY(newPosIdx, w);
+        queue.push([newPosIdx, newBarrels, newSealedMask, moves + 1, [...path, [nx, ny]]]);
+      }
+    }
+  }
+
+  return null;  // Unsolvable
+}
+
+function simulateMove(level, start, dx, dy, barrels, sealed, buttons, valves, gateOpen, gatePos) {
+  let x = start[0], y = start[1];
+  barrels = new Set(barrels);
+  sealed = new Set(sealed);
+
+  const startKey = `${start[0]},${start[1]}`;
+  const startedOnButton = buttons.has(startKey);
+  let leftButton = false;
+
+  for (let step = 0; step < 50; step++) {
+    const nx = x + dx, ny = y + dy;
+    const nKey = `${nx},${ny}`;
+
+    // Mid-slide gate closing
+    const curKey = `${x},${y}`;
+    if (startedOnButton && !leftButton && !buttons.has(curKey)) {
+      leftButton = true;
+      const barrelsOnButtons = [...barrels].filter(b => buttons.has(b));
+      if (barrelsOnButtons.length === 0) {
+        gateOpen = false;
+      }
+    }
+
+    const c = level.get(nx, ny);
+
+    // Wall
+    if (c === '#') {
+      return [[x, y], barrels, sealed];
+    }
+
+    // Closed gate
+    if (nKey === gatePos && !gateOpen) {
+      return [[x, y], barrels, sealed];
+    }
+
+    // One-way door - check if we can pass through
+    if (c === ')' && dx !== 1) return [[x, y], barrels, sealed];  // Can only pass going right
+    if (c === '(' && dx !== -1) return [[x, y], barrels, sealed]; // Can only pass going left
+    if (c === ']' && dy !== 1) return [[x, y], barrels, sealed];  // Can only pass going down
+    if (c === '[' && dy !== -1) return [[x, y], barrels, sealed]; // Can only pass going up
+
+    // Barrel - try to push
+    if (barrels.has(nKey)) {
+      const pushResult = pushBarrel(level, nx, ny, dx, dy, barrels, sealed, buttons, valves, gateOpen, gatePos);
+      if (!pushResult) {
+        return [[x, y], barrels, sealed];
+      }
+      return [[nx, ny], pushResult[0], pushResult[1]];
+    }
+
+    // Unsealed valve - death!
+    if (c === 'V' && !sealed.has(nKey)) {
+      return null;
+    }
+
+    x = nx;
+    y = ny;
+    const posKey = `${x},${y}`;
+
+    // Button stops player
+    if (buttons.has(posKey)) {
+      return [[x, y], barrels, sealed];
+    }
+
+    // Exit stops player
+    if (posKey === `${level.exit[0]},${level.exit[1]}`) {
+      return [[x, y], barrels, sealed];
+    }
+
+    // Conveyor changes direction
+    const cell = level.get(x, y);
+    if (cell === '>') { dx = 1; dy = 0; }
+    else if (cell === '<') { dx = -1; dy = 0; }
+    else if (cell === '^') { dx = 0; dy = -1; }
+    else if (cell === 'v') { dx = 0; dy = 1; }
+
+    // Teleporter - warp to matching portal and continue sliding
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const teleTarget = level.findCell(targetChar);
+      if (teleTarget) {
+        x = teleTarget[0];
+        y = teleTarget[1];
+        // Continue sliding from teleporter destination
+      }
+    }
+  }
+
+  return [[x, y], barrels, sealed];
+}
+
+function pushBarrel(level, bx, by, dx, dy, barrels, sealed, buttons, valves, gateOpen, gatePos) {
+  const nx = bx + dx, ny = by + dy;
+  const nKey = `${nx},${ny}`;
+  const c = level.get(nx, ny);
+
+  // Can't push into wall, closed gate, or another barrel
+  if (c === '#') return null;
+  if (nKey === gatePos && !gateOpen) return null;
+  if (barrels.has(nKey)) return null;
+
+  // One-way doors block barrels from wrong direction
+  if (c === ')' && dx !== 1) return null;
+  if (c === '(' && dx !== -1) return null;
+  if (c === ']' && dy !== 1) return null;
+  if (c === '[' && dy !== -1) return null;
+
+  barrels = new Set(barrels);
+  sealed = new Set(sealed);
+  barrels.delete(`${bx},${by}`);
+
+  let x = nx, y = ny;
+  while (true) {
+    const posKey = `${x},${y}`;
+
+    // Button stops barrel
+    if (buttons.has(posKey)) {
+      barrels.add(posKey);
+      return [barrels, sealed];
+    }
+
+    // Valve seals
+    if (valves.has(posKey) && !sealed.has(posKey)) {
+      sealed.add(posKey);
+      barrels.add(posKey);
+      return [barrels, sealed];
+    }
+
+    // Teleporter - barrel warps through
+    const cell = level.get(x, y);
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const target = level.findCell(targetChar);
+      if (target) {
+        x = target[0];
+        y = target[1];
+      }
+    }
+
+    // Check next cell
+    const nextX = x + dx, nextY = y + dy;
+    const nextKey = `${nextX},${nextY}`;
+    const nextC = level.get(nextX, nextY);
+
+    if (nextC === '#' || barrels.has(nextKey) || nextKey === gatePos) {
+      barrels.add(posKey);
+      return [barrels, sealed];
+    }
+
+    // One-way door blocks sliding barrel
+    if (nextC === ')' && dx !== 1) { barrels.add(posKey); return [barrels, sealed]; }
+    if (nextC === '(' && dx !== -1) { barrels.add(posKey); return [barrels, sealed]; }
+    if (nextC === ']' && dy !== 1) { barrels.add(posKey); return [barrels, sealed]; }
+    if (nextC === '[' && dy !== -1) { barrels.add(posKey); return [barrels, sealed]; }
+
+    x = nextX;
+    y = nextY;
+  }
+}
+
+// Optimized simulateMove using cell indices
+function simulateMoveOpt(level, startX, startY, dx, dy, barrels, sealedMask, buttons, valveMap, gateOpen, gateIdx, w) {
+  let x = startX, y = startY;
+  const startIdx = cellIdx(startX, startY, w);
+  const startedOnButton = buttons.has(startIdx);
+  let leftButton = false;
+  let curBarrels = barrels;  // Reuse reference until we need to modify
+  let curSealed = sealedMask;
+
+  for (let step = 0; step < 50; step++) {
+    const nx = x + dx, ny = y + dy;
+    const nIdx = cellIdx(nx, ny, w);
+
+    // Mid-slide gate closing
+    const curIdx = cellIdx(x, y, w);
+    if (startedOnButton && !leftButton && !buttons.has(curIdx)) {
+      leftButton = true;
+      let barrelOnButton = false;
+      for (const b of curBarrels) {
+        if (buttons.has(b)) { barrelOnButton = true; break; }
+      }
+      if (!barrelOnButton) gateOpen = false;
+    }
+
+    const c = level.get(nx, ny);
+
+    // Wall
+    if (c === '#') {
+      return [curIdx, curBarrels, curSealed];
+    }
+
+    // Closed gate
+    if (nIdx === gateIdx && !gateOpen) {
+      return [curIdx, curBarrels, curSealed];
+    }
+
+    // One-way door blocks from wrong direction
+    if (c === ')' && dx !== 1) return [curIdx, curBarrels, curSealed];
+    if (c === '(' && dx !== -1) return [curIdx, curBarrels, curSealed];
+    if (c === ']' && dy !== 1) return [curIdx, curBarrels, curSealed];
+    if (c === '[' && dy !== -1) return [curIdx, curBarrels, curSealed];
+
+    // Barrel - try to push
+    if (curBarrels.has(nIdx)) {
+      const pushResult = pushBarrelOpt(level, nx, ny, dx, dy, curBarrels, curSealed, buttons, valveMap, gateOpen, gateIdx, w);
+      if (!pushResult) {
+        return [curIdx, curBarrels, curSealed];
+      }
+      return [nIdx, pushResult[0], pushResult[1]];
+    }
+
+    // Unsealed valve - death!
+    const valveBit = valveMap.get(nIdx);
+    if (valveBit && !(curSealed & valveBit)) {
+      return null;
+    }
+
+    x = nx;
+    y = ny;
+    const posIdx = cellIdx(x, y, w);
+
+    // Button stops player
+    if (buttons.has(posIdx)) {
+      return [posIdx, curBarrels, curSealed];
+    }
+
+    // Exit stops player
+    if (x === level.exit[0] && y === level.exit[1]) {
+      return [posIdx, curBarrels, curSealed];
+    }
+
+    // Conveyor changes direction
+    const cell = level.get(x, y);
+    if (cell === '>') { dx = 1; dy = 0; }
+    else if (cell === '<') { dx = -1; dy = 0; }
+    else if (cell === '^') { dx = 0; dy = -1; }
+    else if (cell === 'v') { dx = 0; dy = 1; }
+
+    // Teleporter - warp to matching portal
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const teleTarget = level.findCell(targetChar);
+      if (teleTarget) {
+        x = teleTarget[0];
+        y = teleTarget[1];
+      }
+    }
+  }
+
+  return [cellIdx(x, y, w), curBarrels, curSealed];
+}
+
+// Optimized pushBarrel using cell indices
+function pushBarrelOpt(level, bx, by, dx, dy, barrels, sealedMask, buttons, valveMap, gateOpen, gateIdx, w) {
+  const nx = bx + dx, ny = by + dy;
+  const nIdx = cellIdx(nx, ny, w);
+  const c = level.get(nx, ny);
+
+  // Can't push into wall, closed gate, or another barrel
+  if (c === '#') return null;
+  if (nIdx === gateIdx && !gateOpen) return null;
+  if (barrels.has(nIdx)) return null;
+
+  // One-way doors block barrels
+  if (c === ')' && dx !== 1) return null;
+  if (c === '(' && dx !== -1) return null;
+  if (c === ']' && dy !== 1) return null;
+  if (c === '[' && dy !== -1) return null;
+
+  // Now we need to modify barrels - create new Set
+  const newBarrels = new Set(barrels);
+  const bIdx = cellIdx(bx, by, w);
+  newBarrels.delete(bIdx);
+
+  let x = nx, y = ny;
+  while (true) {
+    const posIdx = cellIdx(x, y, w);
+
+    // Button stops barrel
+    if (buttons.has(posIdx)) {
+      newBarrels.add(posIdx);
+      return [newBarrels, sealedMask];
+    }
+
+    // Valve seals
+    const valveBit = valveMap.get(posIdx);
+    if (valveBit && !(sealedMask & valveBit)) {
+      newBarrels.add(posIdx);
+      return [newBarrels, sealedMask | valveBit];
+    }
+
+    // Teleporter - barrel warps through
+    const cell = level.get(x, y);
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const target = level.findCell(targetChar);
+      if (target) {
+        x = target[0];
+        y = target[1];
+      }
+    }
+
+    // Check next cell
+    const nextX = x + dx, nextY = y + dy;
+    const nextIdx = cellIdx(nextX, nextY, w);
+    const nextC = level.get(nextX, nextY);
+
+    if (nextC === '#' || newBarrels.has(nextIdx) || nextIdx === gateIdx) {
+      newBarrels.add(posIdx);
+      return [newBarrels, sealedMask];
+    }
+
+    // One-way door blocks sliding barrel
+    if (nextC === ')' && dx !== 1) { newBarrels.add(posIdx); return [newBarrels, sealedMask]; }
+    if (nextC === '(' && dx !== -1) { newBarrels.add(posIdx); return [newBarrels, sealedMask]; }
+    if (nextC === ']' && dy !== 1) { newBarrels.add(posIdx); return [newBarrels, sealedMask]; }
+    if (nextC === '[' && dy !== -1) { newBarrels.add(posIdx); return [newBarrels, sealedMask]; }
+
+    x = nextX;
+    y = nextY;
+  }
+}
+
+// Room creation functions
+function createBorderedRoom(w, h) {
+  const lv = new GeneratorLevel(w, h);
+  for (let x = 0; x < w; x++) {
+    lv.set(x, 0, '#');
+    lv.set(x, h - 1, '#');
+  }
+  for (let y = 0; y < h; y++) {
+    lv.set(0, y, '#');
+    lv.set(w - 1, y, '#');
+  }
+  return lv;
+}
+
+function createZigzagRoom(w, h) {
+  const lv = createBorderedRoom(w, h);
+  for (let y = 2; y < h - 2; y += 2) {
+    const gapX = 1 + Math.floor(Math.random() * (w - 2));
+    for (let x = 1; x < w - 1; x++) {
+      if (x !== gapX) lv.set(x, y, '#');
+    }
+  }
+  return lv;
+}
+
+function createRandomMaze(w, h) {
+  const lv = createBorderedRoom(w, h);
+  const interior = (w - 2) * (h - 2);
+  const numWalls = Math.floor(interior / 5) + Math.floor(Math.random() * interior / 3);
+  for (let i = 0; i < numWalls; i++) {
+    const x = 1 + Math.floor(Math.random() * (w - 2));
+    const y = 1 + Math.floor(Math.random() * (h - 2));
+    lv.set(x, y, '#');
+  }
+  return lv;
+}
+
+function placeEntryExitOpposite(lv) {
+  lv.set(1, 0, 'S');
+  lv.set(lv.w - 2, lv.h - 1, 'X');
+  return lv;
+}
+
+function placeBarrelBlocking(lv, path) {
+  if (!path || path.length < 4) return lv;
+
+  for (let i = 2; i < path.length - 2; i++) {
+    const [bx, by] = path[i];
+    if (lv.get(bx, by) !== '.') continue;
+
+    for (const [dx, dy] of DIRS) {
+      const px = bx - dx, py = by - dy;
+      if (lv.get(px, py) !== '.' && lv.get(px, py) !== 'S') continue;
+
+      const sx = bx + dx, sy = by + dy;
+      if (lv.get(sx, sy) !== '.') continue;
+
+      const testLv = lv.copy();
+      testLv.set(bx, by, 'B');
+
+      // Simulate barrel push to find final position
+      let fx = sx, fy = sy;
+      while (testLv.get(fx + dx, fy + dy) === '.') {
+        fx += dx;
+        fy += dy;
+      }
+
+      testLv.set(bx, by, '.');
+      testLv.set(fx, fy, 'B');
+
+      const result = solveLevel(testLv);
+      if (result) {
+        lv.set(bx, by, 'B');
+        return lv;
+      }
+    }
+  }
+  return lv;
+}
+
+function placeButtonGate(lv, path) {
+  if (!path || path.length < 3) return lv;
+
+  const [ex, ey] = lv.exit;
+  const gateY = ey - 1;
+  const buttonY = gateY - 2;
+
+  if (buttonY < 1 || gateY < 1) return lv;
+
+  const testLv = lv.copy();
+
+  // Wall off gate row except exit column
+  for (let x = 1; x < lv.w - 1; x++) {
+    if (x !== ex) testLv.set(x, gateY, '#');
+  }
+
+  testLv.set(ex, gateY, 'G');
+
+  // Clear path from button to gate
+  for (let y = buttonY; y < gateY; y++) {
+    if (testLv.get(ex, y) === '#') testLv.set(ex, y, '.');
+  }
+
+  testLv.set(ex, buttonY, 'O');
+
+  const result = solveLevel(testLv);
+  if (result) {
+    lv.grid = testLv.grid;
+    return lv;
+  }
+  return lv;
+}
+
+function placeBarrelOnButton(lv, path) {
+  if (!path || path.length < 3) return lv;
+
+  const [ex, ey] = lv.exit;
+  const gateY = ey - 1;
+  if (gateY < 3) return lv;
+
+  const testLv = lv.copy();
+
+  // Wall off gate row
+  for (let x = 1; x < lv.w - 1; x++) {
+    if (x !== ex) testLv.set(x, gateY, '#');
+  }
+
+  testLv.set(ex, gateY, 'G');
+
+  const buttonY = gateY - 2;
+  const buttonX = ex;
+  const barrelX = buttonX - 1;
+  const pushX = barrelX - 1;
+
+  if (barrelX < 1 || pushX < 1 || buttonY < 1) return lv;
+
+  // Clear path from button to gate
+  for (let y = buttonY; y < gateY; y++) {
+    if (testLv.get(ex, y) === '#') testLv.set(ex, y, '.');
+  }
+
+  // Add wall for push stop
+  if (pushX > 1 && testLv.get(pushX - 1, buttonY) === '.') {
+    testLv.set(pushX - 1, buttonY, '#');
+  }
+
+  if (testLv.get(pushX, buttonY) === '#') {
+    testLv.set(pushX, buttonY, '.');
+  }
+
+  testLv.set(buttonX, buttonY, 'O');
+  testLv.set(barrelX, buttonY, 'B');
+
+  const result = solveLevel(testLv);
+  if (result) {
+    lv.grid = testLv.grid;
+    return lv;
+  }
+  return lv;
+}
+
+function placeValveAndBarrel(lv, path) {
+  if (!path || path.length < 4) return lv;
+
+  const startIdx = Math.max(2, Math.floor(path.length / 4));
+  const endIdx = Math.min(path.length - 2, Math.floor(3 * path.length / 4));
+
+  for (let i = startIdx; i < endIdx; i++) {
+    const [vx, vy] = path[i];
+    if (lv.get(vx, vy) !== '.') continue;
+
+    for (const [dx, dy] of DIRS) {
+      const bx = vx + dx, by = vy + dy;
+      if (lv.get(bx, by) !== '.') continue;
+
+      const px = bx + dx, py = by + dy;
+      if (lv.get(px, py) !== '.' && lv.get(px, py) !== 'S') continue;
+
+      lv.set(vx, vy, 'V');
+      lv.set(bx, by, 'B');
+      return lv;
+    }
+  }
+  return lv;
+}
+
+function placeConveyor(lv, path) {
+  if (!path || path.length < 4) return lv;
+
+  for (let i = 1; i < path.length - 1; i++) {
+    const [x, y] = path[i];
+    if (lv.get(x, y) !== '.') continue;
+
+    if (i < path.length - 1) {
+      const [nx, ny] = path[i + 1];
+      const dx = nx - x, dy = ny - y;
+
+      let conv;
+      if (dx > 0) conv = '>';
+      else if (dx < 0) conv = '<';
+      else if (dy > 0) conv = 'v';
+      else conv = '^';
+
+      lv.set(x, y, conv);
+      return lv;
+    }
+  }
+  return lv;
+}
+
+// Score level quality - higher is better
+function scoreLevelQuality(level, solution) {
+  if (!solution || solution.length < 3) return 0;
+
+  let score = 0;
+
+  // 1. Direction changes in solution (not a straight path)
+  let dirChanges = 0;
+  for (let i = 1; i < solution.length; i++) {
+    if (solution[i] !== solution[i-1]) dirChanges++;
+  }
+  score += dirChanges * 10;  // Each direction change is valuable
+
+  // 2. Solution length
+  score += solution.length * 5;
+
+  // 3. Mechanics used (barrels, buttons, valves increase quality)
+  let hasBarrel = false, hasButton = false, hasValve = false, hasGate = false;
+  for (let y = 0; y < level.h; y++) {
+    for (let x = 0; x < level.w; x++) {
+      const c = level.get(x, y);
+      if (c === 'B') hasBarrel = true;
+      if (c === 'O') hasButton = true;
+      if (c === 'V') hasValve = true;
+      if (c === 'G') hasGate = true;
+    }
+  }
+  if (hasBarrel) score += 20;
+  if (hasButton && hasGate) score += 80;  // Button+gate combo is LOVED (from rating data)
+  if (hasValve && hasBarrel) score += 50;  // Valve+barrel combo is good
+  if (hasButton && hasGate && hasValve) score += 40;  // Full combo bonus
+
+  // Penalize levels with no real mechanics (just mazes - hated in ratings)
+  if (!hasButton && !hasGate && !hasValve) score -= 100;
+
+  // 4. Penalize if solution is too linear (mostly same direction)
+  const dirCounts = {up: 0, down: 0, left: 0, right: 0};
+  solution.forEach(d => dirCounts[d]++);
+  const maxDir = Math.max(...Object.values(dirCounts));
+  const linearRatio = maxDir / solution.length;
+  if (linearRatio > 0.7) score -= 30;  // Too linear, penalize
+
+  // 5. Bonus for backtracking (going up after going down, etc)
+  let backtracks = 0;
+  for (let i = 1; i < solution.length; i++) {
+    if ((solution[i] === 'up' && solution[i-1] === 'down') ||
+        (solution[i] === 'down' && solution[i-1] === 'up') ||
+        (solution[i] === 'left' && solution[i-1] === 'right') ||
+        (solution[i] === 'right' && solution[i-1] === 'left')) {
+      backtracks++;
+    }
+  }
+  score += backtracks * 15;  // Backtracking means interesting puzzle
+
+  return score;
+}
+
+// Check if exit is blocked (can't just walk there ignoring mechanics)
+// Returns true if path IS blocked (good), false if you can walk straight to exit (bad)
+function isPathBlocked(level) {
+  const start = level.start;
+  const exit = level.exit;
+  if (!start || !exit) return true;
+
+  // BFS treating only walls as blockers
+  // Gates, barrels, valves, buttons are all walkable in this check
+  const visited = new Set();
+  const queue = [[start.x, start.y]];
+  visited.add(`${start.x},${start.y}`);
+
+  while (queue.length > 0) {
+    const [x, y] = queue.shift();
+    if (x === exit.x && y === exit.y) {
+      return false;  // Can reach exit without mechanics - BAD
+    }
+
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      if (nx < 0 || ny < 0 || nx >= level.w || ny >= level.h) continue;
+      const cell = level.get(nx, ny);
+      // Only walls block in this simple check
+      if (cell === '#') continue;
+      visited.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+
+  return true;  // Cannot reach exit without using mechanics - GOOD
+}
+
+function generateLevel(config, timeBudget = 2000) {
+  const startTime = Date.now();
+  const w = config.width || 5;
+  const h = config.height || 9;
+  const minMoves = config.min_moves || 3;
+
+  let bestLevel = null;
+  let bestMoves = 0;
+  let bestSolution = null;
+  let bestQuality = 0;
+
+  while (Date.now() - startTime < timeBudget) {
+    // Random layout
+    const layoutType = Math.floor(Math.random() * 3);
+    let lv;
+    if (layoutType === 0) lv = createZigzagRoom(w, h);
+    else if (layoutType === 1) lv = createRandomMaze(w, h);
+    else {
+      lv = createBorderedRoom(w, h);
+      const numWalls = 2 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < numWalls; i++) {
+        lv.set(1 + Math.floor(Math.random() * (w - 2)),
+               1 + Math.floor(Math.random() * (h - 2)), '#');
+      }
+    }
+
+    placeEntryExitOpposite(lv);
+
+    let result = solveLevel(lv);
+    if (!result) continue;
+
+    let path = result.path;
+
+    // Add pieces based on config
+    if (config.require_barrel_on_button) {
+      lv = placeBarrelOnButton(lv, path);
+      const hasGate = lv.grid.some(row => row.includes('G'));
+      if (!hasGate) continue;
+      result = solveLevel(lv);
+      if (!result) continue;
+      path = result.path;
+    } else if (config.require_gate) {
+      lv = placeButtonGate(lv, path);
+      const hasGate = lv.grid.some(row => row.includes('G'));
+      if (!hasGate) continue;
+      result = solveLevel(lv);
+      if (!result) continue;
+      path = result.path;
+    }
+
+    if (config.require_conveyor) {
+      lv = placeConveyor(lv, path);
+      result = solveLevel(lv);
+      if (!result) continue;
+      path = result.path;
+    }
+
+    if (config.require_barrel && !config.require_barrel_on_button) {
+      lv = placeBarrelBlocking(lv, path);
+      result = solveLevel(lv);
+      if (!result) continue;
+    }
+
+    if (config.require_valve) {
+      lv = placeValveAndBarrel(lv, path);
+      result = solveLevel(lv);
+      if (!result) continue;
+    }
+
+    if (result.moves >= minMoves) {
+      // Reject if path to exit isn't blocked by mechanics
+      if (!isPathBlocked(lv)) continue;
+
+      const quality = scoreLevelQuality(lv, result.solution);
+
+      // Prefer quality over just move count
+      if (quality > bestQuality || (quality === bestQuality && result.moves > bestMoves)) {
+        bestQuality = quality;
+        bestMoves = result.moves;
+        bestLevel = lv;
+        bestSolution = result.solution;
+      }
+    }
+  }
+
+  if (!bestLevel) return null;
+
+  return {
+    grid: bestLevel.toGridArray(),
+    par: bestMoves,
+    solution: bestSolution,
+    width: bestLevel.w,
+    height: bestLevel.h,
+    quality: bestQuality,
+    entry: bestLevel.entry,  // [x, y] coordinates
+    exit: bestLevel.exit     // [x, y] coordinates
+  };
+}
+
+// Configuration for difficulty progression
+function getConfigForDifficulty(difficultyLevel) {
+  // Start small, grow with difficulty, add randomness
+  const baseW = 5 + Math.floor(difficultyLevel / 5);  // Grows slowly
+  const baseH = 7 + Math.floor(difficultyLevel / 3);  // Height grows faster
+  const randW = Math.floor(Math.random() * (1 + difficultyLevel / 10));  // More variance at higher levels
+  const randH = Math.floor(Math.random() * (2 + difficultyLevel / 8));
+  const width = baseW + randW;
+  const height = baseH + randH;
+
+  // Based on rating analysis: button+gate combos are loved, bare mazes are hated
+  const alwaysButtonGate = difficultyLevel > 3;
+
+  return {
+    width: width,
+    height: height,
+    min_moves: 6 + Math.floor(difficultyLevel / 3),
+    require_barrel: true,
+    require_valve: difficultyLevel >= 5 && Math.random() < 0.5,
+    require_gate: alwaysButtonGate || Math.random() < 0.5,
+    require_barrel_on_button: alwaysButtonGate || Math.random() < 0.5,
+    require_conveyor: difficultyLevel > 8 && Math.random() < 0.2,
+  };
+}
+
+// === WEB WORKER SETUP ===
+const workerCode = `
+const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+${GeneratorLevel.toString()}
+${cellIdx.toString()}
+${idxToXY.toString()}
+${stateKey.toString()}
+${solveLevel.toString()}
+${simulateMoveOpt.toString()}
+${pushBarrelOpt.toString()}
+${createBorderedRoom.toString()}
+${createZigzagRoom.toString()}
+${createRandomMaze.toString()}
+${placeEntryExitOpposite.toString()}
+${placeBarrelBlocking.toString()}
+${placeButtonGate.toString()}
+${placeBarrelOnButton.toString()}
+${placeValveAndBarrel.toString()}
+${placeConveyor.toString()}
+${scoreLevelQuality.toString()}
+${isPathBlocked.toString()}
+${generateLevel.toString()}
+${getConfigForDifficulty.toString()}
+
+self.onmessage = function(e) {
+  const { type, count, difficultyStart } = e.data;
+  if (type === 'generate') {
+    const levels = [];
+    // Generate across a RANGE of difficulties for variety
+    const minDiff = Math.max(0, difficultyStart - 2);
+    const maxDiff = difficultyStart + 10;
+
+    for (let i = 0; i < count; i++) {
+      // Pick random difficulty in range for size variety
+      const diff = minDiff + Math.floor(Math.random() * (maxDiff - minDiff + 1));
+      const config = getConfigForDifficulty(diff);
+      const level = generateLevel(config, 1500);
+      if (level) {
+        level.difficulty = diff;
+        level.name = 'Room ' + (difficultyStart + i + 7);
+        levels.push(level);
+      }
+    }
+    // Sort by quality (best levels first)
+    levels.sort((a, b) => (b.quality || 0) - (a.quality || 0));
+    self.postMessage({ type: 'levels', data: levels });
+  }
+};
+`;
+
+let worker = null;
+let levelQueue = [];
+let generatedCount = 0;
+const QUEUE_MIN = 15;     // Keep more levels ready
+const QUEUE_TARGET = 25;  // Generate lots of varied sizes
+
+// Adaptive difficulty tracking
+let levelStartTime = 0;
+let recentCompletionTimes = [];  // Last 5 completion times in seconds
+let currentDifficulty = 0;       // Starts at 0, increases based on performance
+const MIN_PAR_FOR_SKILL = 6;     // Skip levels with par below this if user is fast
+
+let levelsLoaded = false;
+
+function initWorker() {
+  // Load pre-generated levels from JSON file
+  fetch('levels_compact.json')
+    .then(r => r.json())
+    .then(levels => {
+      console.log(`Loaded ${levels.length} pre-generated levels`);
+      levelQueue.push(...levels);
+      generatedCount = levels.length;
+      levelsLoaded = true;
+      document.getElementById('loading').style.display = 'none';
+      // Trigger game init now that levels are ready
+      if (activeLevels.length === 0) {
+        initGame();
+      }
+    })
+    .catch(err => {
+      console.log('Failed to load levels, using worker fallback:', err);
+      levelsLoaded = true;  // Mark as loaded so init can proceed
+      // Fallback to worker-based generation
+      try {
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        worker = new Worker(URL.createObjectURL(blob));
+        worker.onmessage = (e) => {
+          if (e.data.type === 'levels') {
+            levelQueue.push(...e.data.data);
+            levelQueue.sort((a, b) => a.par - b.par);
+            generatedCount += e.data.data.length;
+            document.getElementById('loading').style.display = 'none';
+          }
+        };
+        requestMoreLevels();
+      } catch (workerErr) {
+        console.log('Web Worker not supported, using sync fallback');
+        worker = null;
+      }
+    });
+}
+
+function requestMoreLevels() {
+  // Pre-generated levels loaded at startup - no need to generate more
+  // Fallback to worker only if pre-generated levels failed to load
+  if (worker && levelQueue.length < QUEUE_MIN) {
+    worker.postMessage({
+      type: 'generate',
+      count: QUEUE_TARGET,
+      difficultyStart: currentDifficulty
+    });
+  }
+}
+
+// Track level completion and adjust difficulty
+function recordLevelCompletion() {
+  if (levelStartTime > 0) {
+    const completionTime = (Date.now() - levelStartTime) / 1000;
+    recentCompletionTimes.push(completionTime);
+
+    // Keep only last 5
+    if (recentCompletionTimes.length > 5) {
+      recentCompletionTimes.shift();
+    }
+
+    // Adjust difficulty based on speed
+    adjustDifficulty(completionTime);
+  }
+}
+
+function adjustDifficulty(lastTime) {
+  // If user completed in under 15 seconds, they're fast - bump difficulty
+  if (lastTime < 15 && recentCompletionTimes.length >= 2) {
+    const avgTime = recentCompletionTimes.reduce((a, b) => a + b, 0) / recentCompletionTimes.length;
+    if (avgTime < 20) {
+      currentDifficulty += 2;  // Jump ahead faster
+      hotSwapNextLevel();      // Replace the off-screen level with a harder one
+    } else if (avgTime < 30) {
+      currentDifficulty += 1;
+      hotSwapNextLevel();
+    }
+  }
+}
+
+// Hot-swap the next level (off-screen) with a harder one if it's too easy
+function hotSwapNextLevel() {
+  const nextIdx = currentLevelIndex + 1;
+  if (nextIdx >= activeLevels.length) return;
+
+  const nextLevel = activeLevels[nextIdx];
+
+  // If next level is too easy, replace it
+  if (nextLevel.levelData.par < MIN_PAR_FOR_SKILL) {
+    // Find a harder level from queue
+    let harderLevel = null;
+    for (let i = 0; i < levelQueue.length; i++) {
+      if (levelQueue[i].par >= MIN_PAR_FOR_SKILL) {
+        harderLevel = levelQueue.splice(i, 1)[0];
+        break;
+      }
+    }
+
+    // If no harder level in queue, generate one synchronously
+    if (!harderLevel) {
+      const config = getConfigForDifficulty(currentDifficulty);
+      config.min_moves = MIN_PAR_FOR_SKILL;  // Force minimum difficulty
+      harderLevel = generateLevel(config, 500);
+      if (harderLevel) {
+        harderLevel.name = 'Room ' + (totalLevelNumber + 2);
+      }
+    }
+
+    if (harderLevel) {
+      // Create new level object with same position but harder content
+      const prevLevel = activeLevels[nextIdx - 1];
+      const newLevelObj = createLevelObject(harderLevel, nextLevel.worldY, prevLevel, nextLevel.levelIndex);
+      activeLevels[nextIdx] = newLevelObj;
+    }
+  }
+}
+
+// Track recent solutions to avoid repetitive patterns
+const recentSolutions = [];
+const MAX_RECENT_SOLUTIONS = 10;
+
+function solutionSimilarity(sol1, sol2) {
+  if (!sol1 || !sol2) return 0;
+  // Compare direction patterns - convert to string and check overlap
+  const s1 = sol1.join(',');
+  const s2 = sol2.join(',');
+
+  // Check if one contains the other (subset)
+  if (s1.includes(s2) || s2.includes(s1)) return 1.0;
+
+  // Count matching consecutive pairs
+  let matches = 0;
+  const pairs1 = [];
+  const pairs2 = [];
+  for (let i = 0; i < sol1.length - 1; i++) pairs1.push(sol1[i] + ',' + sol1[i+1]);
+  for (let i = 0; i < sol2.length - 1; i++) pairs2.push(sol2[i] + ',' + sol2[i+1]);
+
+  for (const p of pairs1) {
+    if (pairs2.includes(p)) matches++;
+  }
+
+  return matches / Math.max(pairs1.length, pairs2.length, 1);
+}
+
+function isLevelBoring(levelData) {
+  // Loosened filter - only check solution similarity to avoid repetition
+  // Quality/button-gate filtering happens at generation time now
+
+  // Check solution similarity to recent levels (avoid repetition)
+  if (levelData.solution && recentSolutions.length > 0) {
+    for (const recentSol of recentSolutions) {
+      const similarity = solutionSimilarity(levelData.solution, recentSol);
+      if (similarity > 0.7) {
+        console.log('Skipping similar level, similarity:', similarity);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function addToRecentSolutions(solution) {
+  if (!solution) return;
+  recentSolutions.push(solution);
+  while (recentSolutions.length > MAX_RECENT_SOLUTIONS) {
+    recentSolutions.shift();
+  }
+}
+
+function startLevelTimer() {
+  levelStartTime = Date.now();
+}
+
+// Fallback generation (main thread)
+function generateLevelSync() {
+  const config = getConfigForDifficulty(currentDifficulty);
+  const level = generateLevel(config, 1000);
+  if (level) {
+    level.name = 'Room ' + (totalLevelNumber + 2);
+    currentDifficulty++;
+    return level;
+  }
+  return null;
+}
 
 // === GAME STATE ===
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const header = document.getElementById('header');
 
-let currentLevel = 0;
-let grid = [];
-let gridW = 0;
-let gridH = 0;
+// Active levels for scrolling - each has: {grid, gridW, gridH, worldY, levelData, gateOpen}
+let activeLevels = [];
+let currentLevelIndex = 0;
+let totalLevelNumber = 0;  // Total levels played
+
 let CELL = 50;
 
-let playerX = 0, playerY = 0;           // Grid position
-let playerRenderX = 0, playerRenderY = 0; // Render position (animated)
+// Player state (grid position within current level)
+let playerX = 0, playerY = 0;
+let playerRenderX = 0, playerRenderY = 0;
 let isAnimating = false;
-let gateOpen = false;
 let moveCount = 0;
-let showWin = false;
 
-// === COLORS (Burnished Bronze palette) ===
+// Scrolling state
+let viewportX = 0;
+let viewportY = 0;
+let targetViewportX = 0;
+let targetViewportY = 0;
+let scrollAnimating = false;
+
+// Hint state
+let showHint = false;
+let hintDirection = null;
+let hintTimer = null;
+
+// Reverse mode state - for full journey back
+let reverseMode = false;
+let journeyComplete = false;  // True when reached the end going forward
+
+// Shortcut to current level
+function currentLevel() {
+  return activeLevels[currentLevelIndex];
+}
+
+// === COLORS ===
 const COLORS = {
   bg: '#16100c',
   floor: '#2a2018',
@@ -182,10 +1490,6 @@ const COLORS = {
 
 // === RESIZE ===
 function resize() {
-  const level = LEVELS[currentLevel];
-  gridH = level.grid.length;
-  gridW = level.grid[0].length;
-
   const vh = window.innerHeight;
   const vw = window.innerWidth;
 
@@ -193,229 +1497,640 @@ function resize() {
   const maxH = vh - 100;
   const maxW = vw - 20;
 
-  const cellFromH = Math.floor(maxH / gridH);
-  const cellFromW = Math.floor(maxW / gridW);
-  CELL = Math.min(cellFromH, cellFromW, 80); // Cap at 80px
+  // Base cell size on typical level width
+  const typicalWidth = 6;
+  CELL = Math.min(Math.floor(maxW / typicalWidth), Math.floor(maxH / 12), 60);
 
-  canvas.width = gridW * CELL;
-  canvas.height = gridH * CELL;
+  canvas.width = maxW;
+  canvas.height = maxH;
 
   draw();
 }
 
-// === LOAD LEVEL ===
-function loadLevel(index) {
-  currentLevel = index;
-  const level = LEVELS[index];
+// Get level data from tutorial or queue
+function getLevelData(index) {
+  if (index < TUTORIAL_LEVELS.length) {
+    return TUTORIAL_LEVELS[index];
+  }
 
-  // Convert strings to mutable char arrays
-  grid = level.grid.map(row => row.split(''));
-  gridH = grid.length;
-  gridW = grid[0].length;
+  // Pre-generated levels are already quality-filtered
+  if (levelQueue.length > 0) {
+    const data = levelQueue.shift();
+    return data;
+  }
 
-  // Find player start (S)
-  for (let y = 0; y < gridH; y++) {
-    for (let x = 0; x < gridW; x++) {
-      if (grid[y][x] === 'S') {
-        playerX = x;
-        playerY = y;
-        playerRenderX = x;
-        playerRenderY = y;
+  // Fallback if no levels available
+  if (worker) {
+    document.getElementById('loading').style.display = 'block';
+    requestMoreLevels();
+    return null;
+  }
+
+  return generateLevelSync();
+}
+
+// Create a level object from level data
+function createLevelObject(levelData, worldY, prevLevel = null, levelIndex = 0) {
+  const grid = levelData.grid.map(row => row.split(''));
+  const gridH = grid.length;
+  const gridW = grid[0].length;
+
+  // Use entry/exit from levelData if available, otherwise find in grid
+  let entry = null, exit = null;
+  if (levelData.entry) {
+    entry = {x: levelData.entry[0], y: levelData.entry[1]};
+  }
+  if (levelData.exit) {
+    exit = {x: levelData.exit[0], y: levelData.exit[1]};
+  }
+
+  // Fallback: find in grid
+  if (!entry || !exit) {
+    for (let y = 0; y < gridH; y++) {
+      for (let x = 0; x < gridW; x++) {
+        if (grid[y][x] === 'S' && !entry) entry = {x, y};
+        if (grid[y][x] === 'X' && !exit) exit = {x, y};
       }
     }
   }
 
+  // Calculate horizontal offset to align entry with previous exit
+  let worldX = 0;
+  if (prevLevel) {
+    // Previous exit position (in its centered coordinate system)
+    const prevCenterX = prevLevel.gridW * CELL / 2;
+    const prevExitLocalX = prevLevel.exit.x * CELL + CELL / 2;
+    const prevExitOffset = prevExitLocalX - prevCenterX;
+
+    // This level's entry position (in its centered coordinate system)
+    const thisCenterX = gridW * CELL / 2;
+    const thisEntryLocalX = entry.x * CELL + CELL / 2;
+    const thisEntryOffset = thisEntryLocalX - thisCenterX;
+
+    // Offset this level so entry aligns with prev exit
+    worldX = prevLevel.worldX + prevExitOffset - thisEntryOffset;
+  }
+
+  return {
+    grid,
+    gridW,
+    gridH,
+    worldX,
+    worldY,
+    levelData,
+    entry,
+    exit,
+    gateOpen: false,
+    levelIndex,
+    get(x, y) {
+      if (x >= 0 && x < gridW && y >= 0 && y < gridH) {
+        return grid[y][x];
+      }
+      return '#';
+    },
+    findCell(char) {
+      for (let y = 0; y < gridH; y++) {
+        for (let x = 0; x < gridW; x++) {
+          if (grid[y][x] === char) return [x, y];
+        }
+      }
+      return null;
+    }
+  };
+}
+
+// Initialize or reset to first level
+function initGame() {
+  activeLevels = [];
+  currentLevelIndex = 0;
+  viewportX = 0;
+  viewportY = 0;
+  targetViewportX = 0;
+  targetViewportY = 0;
+
+  // Check if tutorial completed - skip to generated levels
+  const tutorialDone = localStorage.getItem('steamFactoryTutorialDone') === 'true';
+  const startLevel = tutorialDone ? TUTORIAL_LEVELS.length : 0;
+  totalLevelNumber = startLevel;
+
+  // If skipping tutorial, start at higher difficulty for better levels
+  if (tutorialDone) {
+    currentDifficulty = 5;  // Start with button+gate combos
+  }
+
+  // Load first two levels
+  const firstData = getLevelData(startLevel);
+  if (!firstData) {
+    // If generated levels not ready yet, show loading
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'Generating levels...';
+    setTimeout(initGame, 500);
+    return;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+
+  const firstLevel = createLevelObject(firstData, 0, null, startLevel);
+  activeLevels.push(firstLevel);
+
+  // Preload next level (pass first level for door alignment)
+  const secondData = getLevelData(startLevel + 1);
+  if (secondData) {
+    const secondLevel = createLevelObject(secondData, firstLevel.gridH * CELL, firstLevel, startLevel + 1);
+    activeLevels.push(secondLevel);
+  }
+
+  // Set player at entry of first level
+  playerX = firstLevel.entry.x;
+  playerY = firstLevel.entry.y;
+  playerRenderX = playerX;
+  playerRenderY = playerY;
   moveCount = 0;
-  showWin = false;
 
-  // Initialize gate state (checks buttons with barrels)
   updateGateState();
-
   resize();
   updateHeader();
+  startLevelTimer();
+}
+
+// Add next level to the stack
+function addNextLevel() {
+  const lastLevel = activeLevels[activeLevels.length - 1];
+  const nextIndex = lastLevel.levelIndex + 1;  // Use stored index, not formula
+
+  const levelData = getLevelData(nextIndex);
+  if (!levelData) return false;
+
+  const worldY = lastLevel.worldY + lastLevel.gridH * CELL;
+  const newLevel = createLevelObject(levelData, worldY, lastLevel, nextIndex);
+  activeLevels.push(newLevel);
+  return true;
+}
+
+// Transition to next level (scroll down)
+function transitionToNextLevel() {
+  if (scrollAnimating) return;
+
+  // Make sure next level exists before transitioning
+  const nextIdx = currentLevelIndex + 1;
+  if (nextIdx >= activeLevels.length) {
+    // Next level not ready yet - try to add it
+    const added = addNextLevel();
+    if (!added) {
+      // Still not ready - show loading and wait
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('loading').textContent = 'Generating next level...';
+      // Try again in 500ms
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+        transitionToNextLevel();
+      }, 500);
+      return;
+    }
+  }
+
+  // Record how long the previous level took
+  recordLevelCompletion();
+
+  // Mark tutorial as complete when finishing last tutorial level
+  if (totalLevelNumber === TUTORIAL_LEVELS.length - 1) {
+    localStorage.setItem('steamFactoryTutorialDone', 'true');
+    console.log('Tutorial completed! Will skip to generated levels next time.');
+  }
+
+  // Show rating overlay for generated levels (not tutorials)
+  const justCompletedLevel = currentLevel();
+  const showRating = totalLevelNumber >= TUTORIAL_LEVELS.length &&
+                     justCompletedLevel && justCompletedLevel.levelData;
+
+  currentLevelIndex++;
+  totalLevelNumber++;
+
+  // Show rating after incrementing counters (so we rate the completed level)
+  if (showRating) {
+    showRatingOverlay(justCompletedLevel);
+  }
+
+  const level = currentLevel();
+  if (!level) return;
+
+  // DEBUG: Log old position before spawn
+  const oldX = playerX, oldY = playerY;
+
+  // Find spawn position - ALWAYS search grid for 'S' (most reliable)
+  let foundSpawn = false;
+  for (let y = 0; y < level.gridH && !foundSpawn; y++) {
+    for (let x = 0; x < level.gridW && !foundSpawn; x++) {
+      if (level.grid[y][x] === 'S') {
+        playerX = x;
+        playerY = y;
+        foundSpawn = true;
+        console.log(`SPAWN: Found 'S' at (${x},${y})`);
+      }
+    }
+  }
+
+  // Fallback 1: use level.entry if grid search failed
+  if (!foundSpawn && level.entry) {
+    playerX = level.entry.x;
+    playerY = level.entry.y;
+    foundSpawn = true;
+    console.log(`SPAWN: Using level.entry (${playerX},${playerY})`);
+    // Restore 'S' to grid so future restarts work
+    if (level.grid[playerY] && level.grid[playerY][playerX] !== undefined) {
+      level.grid[playerY][playerX] = 'S';
+    }
+  }
+
+  // Fallback 2: default to (1, 0) where entry is always placed
+  if (!foundSpawn) {
+    playerX = 1;
+    playerY = 0;
+    console.warn(`SPAWN: No spawn found! Defaulting to (1,0). Grid row 0: ${level.grid[0]?.join('')}`);
+  }
+
+  console.log(`SPAWN: ${oldX},${oldY} -> ${playerX},${playerY}, exit at (${level.exit?.x},${level.exit?.y})`);
+
+  moveCount = 0;
+  updateGateState();
+
+  // Show spawn info in header for 3 seconds (mobile debugging)
+  const spawnMsg = `Spawn: ${playerX},${playerY} (was ${oldX},${oldY})`;
+  document.getElementById('header').textContent = spawnMsg;
+  setTimeout(() => updateHeader(), 3000);
+  startLevelTimer();  // Start timing the new level
+
+  // Scroll to new level (both X and Y)
+  targetViewportX = level.worldX || 0;
+  targetViewportY = level.worldY;
+  animateScroll();
+
+  // Preload next level
+  if (currentLevelIndex >= activeLevels.length - 1) {
+    addNextLevel();
+  }
+
+  // Clean up old levels (keep 1 before current)
+  while (activeLevels.length > 3 && currentLevelIndex > 1) {
+    activeLevels.shift();
+    currentLevelIndex--;
+  }
+}
+
+// Transition to previous level (for reverse journey - scroll up)
+function transitionToPreviousLevel() {
+  if (scrollAnimating) return;
+  if (currentLevelIndex <= 0) return;
+
+  currentLevelIndex--;
+  totalLevelNumber--;
+
+  const level = currentLevel();
+  if (!level) return;
+
+  // Use end_state_grid if available (honest reverse from where barrels ended)
+  if (level.levelData.end_state_grid) {
+    level.grid = level.levelData.end_state_grid.map(row => row.split(''));
+  } else {
+    // Fallback: swap S and X on original
+    level.grid = level.levelData.grid.map(row => row.split(''));
+    for (let y = 0; y < level.gridH; y++) {
+      for (let x = 0; x < level.gridW; x++) {
+        if (level.grid[y][x] === 'S') level.grid[y][x] = 'X';
+        else if (level.grid[y][x] === 'X') level.grid[y][x] = 'S';
+      }
+    }
+  }
+
+  // Find start position
+  let startPos = null;
+  for (let y = 0; y < level.gridH; y++) {
+    for (let x = 0; x < level.gridW; x++) {
+      if (level.grid[y][x] === 'S') {
+        startPos = {x, y};
+        break;
+      }
+    }
+  }
+
+  if (startPos) {
+    playerX = startPos.x;
+    playerY = startPos.y;
+  }
+
+  moveCount = 0;
+  level.gateOpen = false;
+
+  updateHeader();
+
+  // Scroll to level
+  targetViewportX = level.worldX || 0;
+  targetViewportY = level.worldY;
+  animateScroll();
+}
+
+function animateScroll() {
+  if (scrollAnimating) return;
+  scrollAnimating = true;
+
+  const startX = viewportX;
+  const startY = viewportY;
+  const startTime = performance.now();
+  const duration = 500;
+
+  // Also animate player render position
+  const startRenderX = playerRenderX;
+  const startRenderY = playerRenderY;
+  const targetRenderX = playerX;
+  const targetRenderY = playerY;
+
+  function update(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    viewportX = startX + (targetViewportX - startX) * ease;
+    viewportY = startY + (targetViewportY - startY) * ease;
+    playerRenderX = startRenderX + (targetRenderX - startRenderX) * ease;
+    playerRenderY = startRenderY + (targetRenderY - startRenderY) * ease;
+
+    draw();
+
+    if (t < 1) {
+      requestAnimationFrame(update);
+    } else {
+      viewportX = targetViewportX;
+      viewportY = targetViewportY;
+      playerRenderX = targetRenderX;
+      playerRenderY = targetRenderY;
+      scrollAnimating = false;
+      draw();
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+// Legacy function for restart
+function loadLevel(index) {
+  if (index === 0) {
+    initGame();
+  } else if (index === totalLevelNumber) {
+    // Restart current level
+    const level = currentLevel();
+    level.grid = level.levelData.grid.map(row => row.split(''));
+
+    // Find spawn from fresh grid
+    let foundSpawn = false;
+    for (let y = 0; y < level.gridH && !foundSpawn; y++) {
+      for (let x = 0; x < level.gridW && !foundSpawn; x++) {
+        if (level.grid[y][x] === 'S') {
+          playerX = x;
+          playerY = y;
+          foundSpawn = true;
+        }
+      }
+    }
+    if (!foundSpawn && level.entry) {
+      playerX = level.entry.x;
+      playerY = level.entry.y;
+    } else if (!foundSpawn) {
+      playerX = 1;
+      playerY = 0;
+    }
+    playerRenderX = playerX;
+    playerRenderY = playerY;
+    moveCount = 0;
+    level.gateOpen = false;
+    updateGateState();
+    updateHeader();
+    draw();
+  }
 }
 
 function updateHeader() {
-  const level = LEVELS[currentLevel];
-  header.textContent = `${level.name} - Moves: ${moveCount} (Par: ${level.par})`;
+  const level = currentLevel();
+  const levelData = level ? level.levelData : null;
+  const roomNum = totalLevelNumber + 1;
+
+  if (reverseMode) {
+    const par = levelData ? (levelData.reverse_par || '?') : '?';
+    header.textContent = `⬆️ Room ${roomNum} - Moves: ${moveCount} (Par: ${par})`;
+  } else {
+    const par = levelData ? levelData.par : '?';
+    header.textContent = `Room ${roomNum} - Moves: ${moveCount} (Par: ${par})`;
+  }
 }
 
-// === COLLISION ===
+// === COLLISION (uses currentLevel) ===
 function isSolid(x, y, ignoreBarrels = false) {
+  const level = currentLevel();
+  if (!level) return true;
+  const {grid, gridW, gridH, gateOpen} = level;
+
   if (x < 0 || y < 0 || y >= gridH || x >= gridW) return true;
   const cell = grid[y][x];
   if (cell === '#') return true;
   if (cell === 'G' && !gateOpen) return true;
-  if ((cell === 'B' || cell === 'P') && !ignoreBarrels) return true;  // P = barrel on button
+  if ((cell === 'B' || cell === 'P' || cell === 'W') && !ignoreBarrels) return true;
   return false;
 }
 
-// Check if barrel can be pushed in direction
 function canPushBarrel(bx, by, dx, dy) {
+  const level = currentLevel();
+  if (!level) return false;
+  const {grid, gridW, gridH} = level;
+
   const nx = bx + dx;
   const ny = by + dy;
-  // Barrel can be pushed if destination is empty floor, button, or valve
   if (nx < 0 || ny < 0 || ny >= gridH || nx >= gridW) return false;
   const dest = grid[ny][nx];
-  return dest === '.' || dest === 'O' || dest === 'V';
+
+  // Check one-way doors
+  if (dest === ')' && dx !== 1) return false;
+  if (dest === '(' && dx !== -1) return false;
+  if (dest === ']' && dy !== 1) return false;
+  if (dest === '[' && dy !== -1) return false;
+
+  return dest === '.' || dest === 'O' || dest === 'V' || dest === ')' || dest === '(' || dest === ']' || dest === '[' || dest === '1' || dest === '2';
 }
 
-// Push barrel and update grid - barrel SLIDES until hitting wall
-function pushBarrel(bx, by, dx, dy) {
-  // What was under the barrel?
+function pushBarrelGame(bx, by, dx, dy) {
+  const level = currentLevel();
+  if (!level) return;
+  const {grid, gridW, gridH} = level;
+
   const wasOnButton = (grid[by][bx] === 'P');
+  const wasOnSealedValve = (grid[by][bx] === 'W');
+  grid[by][bx] = wasOnButton ? 'O' : (wasOnSealedValve ? '.' : '.');
 
-  // Clear old barrel position
-  grid[by][bx] = wasOnButton ? 'O' : '.';  // Restore button if was pressed
-
-  // Slide barrel until it hits something solid
   let nx = bx + dx;
   let ny = by + dy;
   while (true) {
     const cell = grid[ny][nx];
 
-    // Stop on button (barrel rests on it)
     if (cell === 'O') {
-      grid[ny][nx] = 'P';  // Barrel on button (pressed)
+      grid[ny][nx] = 'P';
       break;
     }
 
-    // Stop on valve (barrel seals it)
     if (cell === 'V') {
-      grid[ny][nx] = 'W';  // Barrel seals valve (safe)
+      grid[ny][nx] = 'W';
       break;
     }
 
-    // Check what's ahead
+    // Teleporter - barrel warps through!
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const target = level.findCell(targetChar);
+      if (target) {
+        nx = target[0];
+        ny = target[1];
+        // Continue sliding from teleporter destination
+      }
+    }
+
     const aheadX = nx + dx;
     const aheadY = ny + dy;
     const ahead = (aheadY >= 0 && aheadY < gridH && aheadX >= 0 && aheadX < gridW) ? grid[aheadY][aheadX] : '#';
 
-    // Stop if next cell is solid (wall, gate, another barrel)
     if (ahead === '#' || ahead === 'G' || ahead === 'B' || ahead === 'P' || ahead === 'W') {
-      grid[ny][nx] = 'B';  // Barrel stops here
+      grid[ny][nx] = 'B';
       break;
     }
 
-    // Keep sliding
+    // One-way door blocks barrel from wrong direction
+    if (ahead === ')' && dx !== 1) { grid[ny][nx] = 'B'; break; }
+    if (ahead === '(' && dx !== -1) { grid[ny][nx] = 'B'; break; }
+    if (ahead === ']' && dy !== 1) { grid[ny][nx] = 'B'; break; }
+    if (ahead === '[' && dy !== -1) { grid[ny][nx] = 'B'; break; }
+
     nx += dx;
     ny += dy;
   }
 
-  // Update gate state - check if ANY button has barrel on it
   updateGateState();
 }
 
 function isDeadly(x, y) {
+  const level = currentLevel();
+  if (!level) return false;
+  const {grid, gridW, gridH} = level;
+
   if (x < 0 || y < 0 || y >= gridH || x >= gridW) return false;
   return grid[y][x] === 'V';
 }
 
-// Update gate state based on buttons (player OR barrel)
 function updateGateState() {
+  const level = currentLevel();
+  if (!level) return;
+  const {grid} = level;
+
   const hasGate = grid.some(row => row.includes('G'));
   if (!hasGate) {
-    gateOpen = true;
+    level.gateOpen = true;
     return;
   }
 
-  // Gate opens if player on button OR any barrel on button (P)
   const playerOnButton = grid[playerY] && grid[playerY][playerX] === 'O';
   const barrelOnButton = grid.some(row => row.includes('P'));
 
-  gateOpen = playerOnButton || barrelOnButton;
+  level.gateOpen = playerOnButton || barrelOnButton;
 }
 
 // === MOVEMENT ===
 function move(dx, dy) {
-  if (isAnimating || showWin) return;
+  if (isAnimating || scrollAnimating) return;
+
+  const level = currentLevel();
+  if (!level) return;
+  const {grid, gridW, gridH} = level;
+
+  clearHint();
 
   let x = playerX;
   let y = playerY;
 
-  // Track if we started on button (for mid-slide gate closing)
   const startedOnButton = grid[playerY][playerX] === 'O';
   let leftButton = false;
 
-  // Slide until hitting solid
   while (true) {
     const nx = x + dx;
     const ny = y + dy;
 
-    // If we just left a button, update gate state immediately
-    // This makes the gate close mid-slide!
     if (startedOnButton && !leftButton && grid[y][x] !== 'O') {
       leftButton = true;
-      // Check if any barrel is holding button open
       const barrelOnButton = grid.some(row => row.includes('P'));
       if (!barrelOnButton) {
-        gateOpen = false;  // Gate closes as we leave button!
+        level.gateOpen = false;
       }
     }
 
-    // Check for barrel - try to push it
     const nextCell = (ny >= 0 && ny < gridH && nx >= 0 && nx < gridW) ? grid[ny][nx] : '#';
+
+    // One-way doors - check if we can pass through
+    if (nextCell === ')' && dx !== 1) break;   // Can only pass going right
+    if (nextCell === '(' && dx !== -1) break;  // Can only pass going left
+    if (nextCell === ']' && dy !== 1) break;   // Can only pass going down
+    if (nextCell === '[' && dy !== -1) break;  // Can only pass going up
+
     if (nextCell === 'B' || nextCell === 'P') {
-      // Try to push barrel
       if (canPushBarrel(nx, ny, dx, dy)) {
-        pushBarrel(nx, ny, dx, dy);
-        // Player stops where barrel was
+        pushBarrelGame(nx, ny, dx, dy);
         x = nx;
         y = ny;
       }
-      break;  // Stop whether push succeeded or not
+      break;
     }
 
     if (isSolid(nx, ny)) break;
 
-    // Check for death (valve)
     if (isDeadly(nx, ny)) {
-      // Die - restart level
-      loadLevel(currentLevel);
+      loadLevel(totalLevelNumber);
       return;
     }
 
     x = nx;
     y = ny;
 
-    // Update gate state after each step (in case we just left button)
     if (startedOnButton && !leftButton && grid[y][x] !== 'O') {
       leftButton = true;
       const barrelOnButton = grid.some(row => row.includes('P'));
       if (!barrelOnButton) {
-        gateOpen = false;
+        level.gateOpen = false;
       }
     }
 
-    // Stop on button (momentary - must stay on it)
     if (grid[y][x] === 'O') break;
-
-    // Stop on exit
     if (grid[y][x] === 'X') break;
 
-    // Conveyor - get pushed in conveyor direction
     const cell = grid[y][x];
     if (cell === '>') { dx = 1; dy = 0; }
     else if (cell === '<') { dx = -1; dy = 0; }
     else if (cell === '^') { dx = 0; dy = -1; }
     else if (cell === 'v') { dx = 0; dy = 1; }
+
+    // Teleporter - warp to matching portal
+    if (cell === '1' || cell === '2') {
+      const targetChar = cell === '1' ? '2' : '1';
+      const target = level.findCell(targetChar);
+      if (target) {
+        x = target[0];
+        y = target[1];
+      }
+    }
   }
 
-  // Only count move if we actually moved
   if (x !== playerX || y !== playerY) {
-    // Save gate state from when move started (for win check)
-    const gateWasOpen = gateOpen;
+    const gateWasOpen = level.gateOpen;
 
     playerX = x;
     playerY = y;
     moveCount++;
 
-    // Update gate state
     updateGateState();
 
-    // For win check: if we passed through gate while open, allow win
     if (grid[playerY][playerX] === 'X' && gateWasOpen) {
-      gateOpen = true; // Keep open for win check
+      level.gateOpen = true;
     }
 
     updateHeader();
@@ -431,14 +2146,17 @@ function animateTo(targetX, targetY) {
   const startX = playerRenderX;
   const startY = playerRenderY;
   const startTime = performance.now();
-  const duration = 150; // ms
+  const duration = 150;
 
   function update(now) {
     const t = Math.min(1, (now - startTime) / duration);
-    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const ease = 1 - Math.pow(1 - t, 3);
 
     playerRenderX = startX + (targetX - startX) * ease;
     playerRenderY = startY + (targetY - startY) * ease;
+
+    // Camera follows player Y position
+    updateCameraToPlayer();
 
     draw();
 
@@ -448,6 +2166,7 @@ function animateTo(targetX, targetY) {
       playerRenderX = targetX;
       playerRenderY = targetY;
       isAnimating = false;
+      updateCameraToPlayer();
       draw();
       checkWin();
     }
@@ -456,27 +2175,59 @@ function animateTo(targetX, targetY) {
   requestAnimationFrame(update);
 }
 
+// Keep camera centered on player's Y position
+function updateCameraToPlayer() {
+  const level = currentLevel();
+  if (!level || scrollAnimating) return;
+
+  // Player's world Y position
+  const playerWorldY = level.worldY + playerRenderY * CELL;
+
+  // Target: keep player vertically centered (with some margin)
+  const targetY = playerWorldY - canvas.height / 2 + CELL;
+
+  // Clamp to level bounds (don't scroll past level top/bottom)
+  const minY = level.worldY - CELL * 2;  // Allow seeing a bit above
+  const maxY = level.worldY + level.gridH * CELL - canvas.height + CELL * 2;
+
+  const clampedY = Math.max(minY, Math.min(maxY, targetY));
+
+  // Smooth follow (lerp)
+  viewportY += (clampedY - viewportY) * 0.3;
+}
+
 // === WIN CHECK ===
 function checkWin() {
-  if (grid[playerY][playerX] === 'X' && gateOpen) {
-    showWin = true;
-    draw();
+  const level = currentLevel();
+  if (!level) return;
 
-    setTimeout(() => {
-      showWin = false;
-      if (currentLevel < LEVELS.length - 1) {
-        loadLevel(currentLevel + 1);
+  if (level.grid[playerY][playerX] === 'X') {
+    if (reverseMode) {
+      // In reverse journey - go to PREVIOUS level
+      if (currentLevelIndex <= 0) {
+        // Made it all the way back!
+        document.getElementById('header').textContent = '🎉 FULL CIRCLE COMPLETE! 🎉';
+        document.getElementById('reverse-btn').style.display = 'none';
+        reverseMode = false;
       } else {
-        // Beat all levels!
-        header.textContent = 'You beat all levels! Tap to restart';
-        currentLevel = -1;
+        transitionToPreviousLevel();
       }
-    }, 1200);
+    } else {
+      // Going forward - check if this is the last level
+      const isLastLevel = totalLevelNumber >= 62;  // 63 levels (0-62)
+      if (isLastLevel) {
+        journeyComplete = true;
+        document.getElementById('reverse-btn').style.display = 'inline-block';
+        document.getElementById('reverse-btn').textContent = 'Journey Back!';
+        document.getElementById('header').textContent = `End reached in ${moveCount} moves! Ready to journey back?`;
+      } else {
+        transitionToNextLevel();
+      }
+    }
   }
 }
 
-// === DRAWING FUNCTIONS (ported from original) ===
-
+// === DRAWING FUNCTIONS ===
 function drawFloor(px, py, alt) {
   ctx.fillStyle = alt ? COLORS.floorAlt : COLORS.floor;
   ctx.fillRect(px, py, CELL, CELL);
@@ -517,7 +2268,6 @@ function drawEntry(px, py, roomNum) {
   ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4, 0, Math.PI * 2);
   ctx.fill();
 
-  // Room number
   ctx.fillStyle = '#1a3320';
   ctx.font = `bold ${Math.floor(CELL * 0.4)}px sans-serif`;
   ctx.textAlign = 'center';
@@ -525,17 +2275,25 @@ function drawEntry(px, py, roomNum) {
   ctx.fillText(roomNum, px + CELL / 2, py + CELL / 2 + 1);
 }
 
-function drawExit(px, py, open) {
+function drawExit(px, py, open, nextRoom) {
   ctx.fillStyle = open ? COLORS.exit : COLORS.exitLocked;
   ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
   ctx.fillStyle = open ? '#96dc8c' : '#5a7850';
   ctx.fillRect(px + 6, py + 6, CELL - 12, CELL - 12);
 
+  if (nextRoom) {
+    ctx.fillStyle = open ? '#2a5a30' : '#3a4a38';
+    ctx.font = `bold ${Math.floor(CELL * 0.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(nextRoom, px + CELL / 2, py + CELL / 2 + 1);
+  }
+
   if (!open) {
     ctx.fillStyle = COLORS.bronzeSh;
-    ctx.fillRect(px + CELL/2 - 4, py + CELL/2, 8, 8);
+    ctx.fillRect(px + CELL/2 - 4, py + CELL/2 + 8, 8, 8);
     ctx.beginPath();
-    ctx.arc(px + CELL/2, py + CELL/2, 5, Math.PI, 0);
+    ctx.arc(px + CELL/2, py + CELL/2 + 8, 5, Math.PI, 0);
     ctx.strokeStyle = COLORS.bronzeSh;
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -604,7 +2362,6 @@ function drawOpenValve(px, py) {
   ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 4 - 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Steam puffs
   ctx.fillStyle = COLORS.steamDanger;
   for (let i = 0; i < 4; i++) {
     const sx = px + 8 + (i % 3) * 8;
@@ -685,14 +2442,140 @@ function drawConveyor(px, py, dir) {
   ctx.fill();
 }
 
+// Draw teleporter portal
+function drawTeleporter(px, py, num) {
+  drawFloor(px, py, false);
+  const cx = px + CELL / 2;
+  const cy = py + CELL / 2;
+
+  // Glowing ring
+  const gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 18);
+  gradient.addColorStop(0, num === '1' ? '#ff6b9d' : '#6bffd8');
+  gradient.addColorStop(0.5, num === '1' ? '#d4478a' : '#47d4b4');
+  gradient.addColorStop(1, 'transparent');
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner portal
+  ctx.fillStyle = num === '1' ? '#ff9dc4' : '#9dffd4';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Center dot
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Number label
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(num, cx, cy);
+}
+
+// Draw one-way door
+function drawOnewayDoor(px, py, dir) {
+  drawFloor(px, py, false);
+  const cx = px + CELL / 2;
+  const cy = py + CELL / 2;
+
+  ctx.strokeStyle = COLORS.bronzeHi;
+  ctx.lineWidth = 3;
+
+  // Arrow showing allowed direction
+  ctx.beginPath();
+  switch (dir) {
+    case ')':  // Can only pass going right
+      ctx.moveTo(cx - 8, cy - 10);
+      ctx.lineTo(cx + 8, cy);
+      ctx.lineTo(cx - 8, cy + 10);
+      break;
+    case '(':  // Can only pass going left
+      ctx.moveTo(cx + 8, cy - 10);
+      ctx.lineTo(cx - 8, cy);
+      ctx.lineTo(cx + 8, cy + 10);
+      break;
+    case ']':  // Can only pass going down
+      ctx.moveTo(cx - 10, cy - 8);
+      ctx.lineTo(cx, cy + 8);
+      ctx.lineTo(cx + 10, cy - 8);
+      break;
+    case '[':  // Can only pass going up
+      ctx.moveTo(cx - 10, cy + 8);
+      ctx.lineTo(cx, cy - 8);
+      ctx.lineTo(cx + 10, cy + 8);
+      break;
+  }
+  ctx.stroke();
+
+  // Door frame
+  ctx.strokeStyle = COLORS.bronze;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px + 4, py + 4, CELL - 8, CELL - 8);
+}
+
+// Draw small arrows showing conveyor path
+function drawConveyorPath(level, startX, startY, dir, offsetX, levelTopY) {
+  let dx = 0, dy = 0;
+  if (dir === '>') { dx = 1; dy = 0; }
+  else if (dir === '<') { dx = -1; dy = 0; }
+  else if (dir === '^') { dx = 0; dy = -1; }
+  else if (dir === 'v') { dx = 0; dy = 1; }
+
+  let x = startX + dx;
+  let y = startY + dy;
+
+  ctx.fillStyle = 'rgba(212, 168, 71, 0.4)';  // Semi-transparent gold
+
+  // Trace path until hitting a wall or edge
+  while (x >= 0 && y >= 0 && x < level.gridW && y < level.gridH) {
+    const cell = level.grid[y][x];
+    if (cell === '#' || cell === 'G') break;  // Stop at walls/gates
+
+    // Draw small arrow indicator
+    const px = offsetX + x * CELL;
+    const py = levelTopY + y * CELL;
+    const cx = px + CELL / 2;
+    const cy = py + CELL / 2;
+
+    ctx.beginPath();
+    if (dx > 0) {  // Right
+      ctx.moveTo(cx + 6, cy);
+      ctx.lineTo(cx - 3, cy - 4);
+      ctx.lineTo(cx - 3, cy + 4);
+    } else if (dx < 0) {  // Left
+      ctx.moveTo(cx - 6, cy);
+      ctx.lineTo(cx + 3, cy - 4);
+      ctx.lineTo(cx + 3, cy + 4);
+    } else if (dy < 0) {  // Up
+      ctx.moveTo(cx, cy - 6);
+      ctx.lineTo(cx - 4, cy + 3);
+      ctx.lineTo(cx + 4, cy + 3);
+    } else {  // Down
+      ctx.moveTo(cx, cy + 6);
+      ctx.lineTo(cx - 4, cy - 3);
+      ctx.lineTo(cx + 4, cy - 3);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    x += dx;
+    y += dy;
+  }
+}
+
 function drawPlayer(px, py) {
-  // Glow
   ctx.fillStyle = 'rgba(255, 210, 140, 0.3)';
   ctx.beginPath();
   ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Body
   ctx.fillStyle = COLORS.player;
   ctx.beginPath();
   ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
@@ -703,14 +2586,12 @@ function drawPlayer(px, py) {
   ctx.arc(px + CELL / 2, py + CELL / 2, CELL / 2 - 6, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Eyes
   ctx.fillStyle = '#32261c';
   ctx.beginPath();
   ctx.arc(px + CELL / 2 - 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
   ctx.arc(px + CELL / 2 + 5, py + CELL / 2 - 2, 3, 0, Math.PI * 2);
   ctx.fill();
 
-  // Smile
   ctx.strokeStyle = '#32261c';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -718,133 +2599,439 @@ function drawPlayer(px, py) {
   ctx.stroke();
 }
 
-// === DRAWING ===
+function drawHintArrow(px, py, direction) {
+  const cx = px + CELL / 2;
+  const cy = py + CELL / 2;
+  const size = CELL * 0.6;
+  const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+
+  ctx.save();
+  ctx.globalAlpha = pulse;
+
+  let ax = cx, ay = cy;
+  let angle = 0;
+
+  switch (direction) {
+    case 'right': ax += CELL * 0.7; angle = 0; break;
+    case 'left':  ax -= CELL * 0.7; angle = Math.PI; break;
+    case 'down':  ay += CELL * 0.7; angle = Math.PI / 2; break;
+    case 'up':    ay -= CELL * 0.7; angle = -Math.PI / 2; break;
+  }
+
+  ctx.translate(ax, ay);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = COLORS.gold;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(size / 2, 0);
+  ctx.lineTo(-size / 4, -size / 3);
+  ctx.lineTo(-size / 4, size / 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// === MAIN DRAW ===
 function draw() {
-  // Clear
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw grid
-  for (let y = 0; y < gridH; y++) {
-    for (let x = 0; x < gridW; x++) {
-      const cell = grid[y][x];
-      const px = x * CELL;
-      const py = y * CELL;
-      const alt = (x + y) % 2 === 0;
+  // Draw all visible levels
+  for (let levelIdx = 0; levelIdx < activeLevels.length; levelIdx++) {
+    const level = activeLevels[levelIdx];
+    const levelNum = totalLevelNumber - currentLevelIndex + levelIdx;
 
-      switch (cell) {
-        case '.':
-          drawFloor(px, py, alt);
-          break;
-        case '#':
-          drawWall(px, py);
-          break;
-        case 'S':
-          drawEntry(px, py, currentLevel + 1);
-          break;
-        case 'X':
-          drawExit(px, py, gateOpen);
-          break;
-        case 'O':
-          const isPressed = (Math.floor(playerRenderX + 0.5) === x && Math.floor(playerRenderY + 0.5) === y);
-          drawButton(px, py, isPressed);
-          break;
-        case 'G':
-          drawGate(px, py, gateOpen);
-          break;
-        case 'B':
-          drawFloor(px, py, alt);
-          drawBarrel(px, py);
-          break;
-        case 'P':  // Barrel on button (pressed)
-          drawButton(px, py, true);  // Draw pressed button
-          drawBarrel(px, py);        // Draw barrel on top
-          break;
-        case 'W':  // Barrel sealing valve (safe)
-          drawFloor(px, py, alt);    // Sealed valve becomes safe floor
-          drawBarrel(px, py);        // Draw barrel on top
-          break;
-        case 'V':
-          drawOpenValve(px, py);
-          break;
-        case '>':
-        case '<':
-        case '^':
-        case 'v':
-          drawConveyor(px, py, cell);
-          break;
+    // Level's screen position (accounting for viewport scroll)
+    const levelTopY = level.worldY - viewportY;
+    const levelBottomY = levelTopY + level.gridH * CELL;
+
+    // Skip if completely off screen
+    if (levelBottomY < 0 || levelTopY > canvas.height) continue;
+
+    // Center this level horizontally, with worldX offset and viewport scroll
+    const levelWidth = level.gridW * CELL;
+    const offsetX = (canvas.width - levelWidth) / 2 + (level.worldX || 0) - viewportX;
+
+    // Draw this level's grid
+    for (let y = 0; y < level.gridH; y++) {
+      for (let x = 0; x < level.gridW; x++) {
+        const cell = level.grid[y][x];
+        const px = offsetX + x * CELL;
+        const py = levelTopY + y * CELL;
+
+        // Skip cells that are off screen
+        if (py + CELL < 0 || py > canvas.height) continue;
+
+        const alt = (x + y) % 2 === 0;
+
+        // Check if player is on this cell (for button press visual)
+        const playerOnCell = (levelIdx === currentLevelIndex &&
+                             Math.floor(playerRenderX + 0.5) === x &&
+                             Math.floor(playerRenderY + 0.5) === y);
+
+        switch (cell) {
+          case '.':
+            drawFloor(px, py, alt);
+            break;
+          case '#':
+            drawWall(px, py);
+            break;
+          case 'S':
+            drawEntry(px, py, levelNum + 1);
+            break;
+          case 'X':
+            drawExit(px, py, level.gateOpen, levelNum + 2);
+            break;
+          case 'O':
+            drawButton(px, py, playerOnCell);
+            break;
+          case 'G':
+            drawGate(px, py, level.gateOpen);
+            break;
+          case 'B':
+            drawFloor(px, py, alt);
+            drawBarrel(px, py);
+            break;
+          case 'P':
+            drawButton(px, py, true);
+            drawBarrel(px, py);
+            break;
+          case 'W':
+            drawFloor(px, py, alt);
+            drawBarrel(px, py);
+            break;
+          case 'V':
+            drawOpenValve(px, py);
+            break;
+          case '>':
+          case '<':
+          case '^':
+          case 'v':
+            drawConveyor(px, py, cell);
+            drawConveyorPath(level, x, y, cell, offsetX, levelTopY);
+            break;
+          case '1':
+          case '2':
+            drawTeleporter(px, py, cell);
+            break;
+          case ')':
+          case '(':
+          case ']':
+          case '[':
+            drawOnewayDoor(px, py, cell);
+            break;
+        }
       }
     }
   }
 
-  // Draw player at render position (smooth)
-  drawPlayer(playerRenderX * CELL, playerRenderY * CELL);
+  // Draw player (relative to current level's position)
+  const level = currentLevel();
+  if (level) {
+    const levelTopY = level.worldY - viewportY;
+    const levelWidth = level.gridW * CELL;
+    const offsetX = (canvas.width - levelWidth) / 2 + (level.worldX || 0) - viewportX;
 
-  // Win overlay
-  if (showWin) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const playerPx = offsetX + playerRenderX * CELL;
+    const playerPy = levelTopY + playerRenderY * CELL;
+    drawPlayer(playerPx, playerPy);
 
-    ctx.fillStyle = '#d4a847';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Level Complete!', canvas.width/2, canvas.height/2 - 15);
-
-    const level = LEVELS[currentLevel];
-    const rating = moveCount <= level.par ? '\u2B50' : '';
-    ctx.font = '18px sans-serif';
-    ctx.fillText(`Moves: ${moveCount} / ${level.par} ${rating}`, canvas.width/2, canvas.height/2 + 15);
+    // Draw hint
+    if (showHint && hintDirection) {
+      drawHintArrow(playerPx, playerPy, hintDirection);
+    }
   }
 }
 
-// === INPUT: TOUCH ===
+// === INPUT ===
 let touchStartX = 0;
 let touchStartY = 0;
 
 document.addEventListener('touchstart', e => {
+  if (e.target.tagName === 'BUTTON') return;
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
   e.preventDefault();
 }, { passive: false });
 
 document.addEventListener('touchend', e => {
+  if (e.target.tagName === 'BUTTON') return;
+
   const dx = e.changedTouches[0].clientX - touchStartX;
   const dy = e.changedTouches[0].clientY - touchStartY;
-
   const threshold = 30;
 
-  // Check if it's a tap (to restart after winning all)
   if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
-    if (currentLevel === -1) loadLevel(0);
     return;
   }
 
   if (Math.abs(dx) > Math.abs(dy)) {
-    if (dx > 0) move(1, 0);   // right
-    else move(-1, 0);          // left
+    if (dx > 0) move(1, 0);
+    else move(-1, 0);
   } else {
-    if (dy > 0) move(0, 1);   // down
-    else move(0, -1);          // up
+    if (dy > 0) move(0, 1);
+    else move(0, -1);
   }
 
   e.preventDefault();
 }, { passive: false });
 
-// === INPUT: KEYBOARD ===
 document.addEventListener('keydown', e => {
   switch (e.key) {
     case 'ArrowUp': case 'w': case 'W': move(0, -1); break;
     case 'ArrowDown': case 's': case 'S': move(0, 1); break;
     case 'ArrowLeft': case 'a': case 'A': move(-1, 0); break;
     case 'ArrowRight': case 'd': case 'D': move(1, 0); break;
-    case 'r': case 'R': loadLevel(currentLevel); break;
+    case 'r': case 'R': loadLevel(totalLevelNumber); break;
+    case 'e': case 'E': exportRatings(); break;
   }
 });
 
+// === HINT SYSTEM ===
+function showNextHint() {
+  const level = currentLevel();
+  const levelData = level ? level.levelData : null;
+  if (!levelData) return;
+
+  // Use end_state_reverse_solution when in reverse mode (honest), fallback to reverse_solution
+  const solution = reverseMode
+    ? (levelData.end_state_reverse_solution || levelData.reverse_solution)
+    : levelData.solution;
+  if (!solution) return;
+  if (moveCount >= solution.length) {
+    hintDirection = null;
+    showHint = false;
+    return;
+  }
+
+  hintDirection = solution[moveCount];
+  showHint = true;
+
+  if (hintTimer) cancelAnimationFrame(hintTimer);
+  function animateHint() {
+    if (showHint) {
+      draw();
+      hintTimer = requestAnimationFrame(animateHint);
+    }
+  }
+  animateHint();
+
+  setTimeout(() => {
+    showHint = false;
+    hintDirection = null;
+    draw();
+  }, 3000);
+}
+
+function clearHint() {
+  showHint = false;
+  hintDirection = null;
+  if (hintTimer) {
+    cancelAnimationFrame(hintTimer);
+    hintTimer = null;
+  }
+}
+
+// Button handlers
+document.getElementById('hint-btn').addEventListener('click', showNextHint);
+document.getElementById('restart-btn').addEventListener('click', () => loadLevel(totalLevelNumber));
+document.getElementById('reverse-btn').addEventListener('click', enterReverseMode);
+
+// Enter reverse mode - start journey back using END STATE (no reset!)
+function enterReverseMode() {
+  const level = currentLevel();
+  if (!level || !level.levelData) return;
+
+  reverseMode = true;
+  journeyComplete = false;
+  document.getElementById('reverse-btn').style.display = 'none';
+
+  // Use end_state_grid if available (barrels where they ended up)
+  // Otherwise fall back to swapping S/X on original
+  if (level.levelData.end_state_grid) {
+    level.grid = level.levelData.end_state_grid.map(row => row.split(''));
+  } else {
+    level.grid = level.levelData.grid.map(row => row.split(''));
+    // Swap S and X manually
+    for (let y = 0; y < level.gridH; y++) {
+      for (let x = 0; x < level.gridW; x++) {
+        if (level.grid[y][x] === 'S') level.grid[y][x] = 'X';
+        else if (level.grid[y][x] === 'X') level.grid[y][x] = 'S';
+      }
+    }
+  }
+
+  // Find new start (S) position
+  let startPos = null;
+  for (let y = 0; y < level.gridH; y++) {
+    for (let x = 0; x < level.gridW; x++) {
+      if (level.grid[y][x] === 'S') {
+        startPos = {x, y};
+        break;
+      }
+    }
+  }
+
+  if (startPos) {
+    playerX = startPos.x;
+    playerY = startPos.y;
+    playerRenderX = startPos.x;
+    playerRenderY = startPos.y;
+  }
+
+  level.gateOpen = false;
+  moveCount = 0;
+
+  const par = level.levelData.end_state_reverse_par || level.levelData.reverse_par || '?';
+  document.getElementById('header').textContent = `⬆️ JOURNEY BACK - Level ${totalLevelNumber + 1} (Par ${par})`;
+
+  draw();
+}
+
+// === RATING SYSTEM ===
+const ratingOverlay = document.getElementById('rating-overlay');
+const ratingStars = document.getElementById('rating-stars');
+const ratingSkip = document.getElementById('rating-skip');
+const rejectBtn = document.getElementById('reject-btn');
+let pendingRatingLevel = null;  // Level awaiting rating
+let levelRatings = JSON.parse(localStorage.getItem('steamFactoryRatings') || '[]');
+
+// Create 10 star buttons
+for (let i = 1; i <= 10; i++) {
+  const btn = document.createElement('button');
+  btn.className = 'star-btn';
+  btn.textContent = i;
+  btn.dataset.rating = i;
+  btn.addEventListener('mouseenter', () => highlightStars(i));
+  btn.addEventListener('mouseleave', () => highlightStars(0));
+  btn.addEventListener('click', () => submitRating(i));
+  ratingStars.appendChild(btn);
+}
+
+function highlightStars(upTo) {
+  const stars = ratingStars.querySelectorAll('.star-btn');
+  stars.forEach((star, idx) => {
+    star.classList.toggle('lit', idx < upTo);
+  });
+}
+
+function showRatingOverlay(level) {
+  pendingRatingLevel = level;
+  highlightStars(0);
+  ratingOverlay.classList.add('show');
+}
+
+function hideRatingOverlay() {
+  ratingOverlay.classList.remove('show');
+  pendingRatingLevel = null;
+}
+
+function submitRating(rating) {
+  if (!pendingRatingLevel) return;
+
+  const ratingData = {
+    timestamp: Date.now(),
+    rating: rating,
+    levelData: pendingRatingLevel.levelData,
+    par: pendingRatingLevel.levelData.par,
+    quality: pendingRatingLevel.levelData.quality || 0,
+    playerMoves: moveCount
+  };
+
+  levelRatings.push(ratingData);
+  localStorage.setItem('steamFactoryRatings', JSON.stringify(levelRatings));
+
+  console.log(`Level rated ${rating}/10, par=${ratingData.par}, quality=${ratingData.quality}`);
+  hideRatingOverlay();
+}
+
+ratingSkip.addEventListener('click', hideRatingOverlay);
+
+// Reject button - skip current level and rate it 1
+rejectBtn.addEventListener('click', () => {
+  // If at end of forward journey, skip reverse and... restart? Or just stay?
+  if (journeyComplete) {
+    journeyComplete = false;
+    document.getElementById('reverse-btn').style.display = 'none';
+    document.getElementById('header').textContent = 'Journey complete! Refresh to play again.';
+    return;
+  }
+
+  const level = currentLevel();
+  if (!level) return;
+
+  // Only rate generated levels (not tutorials)
+  if (totalLevelNumber > TUTORIAL_LEVELS.length && level.levelData) {
+    const ratingData = {
+      timestamp: Date.now(),
+      rating: 1,
+      levelData: level.levelData,
+      par: level.levelData.par,
+      quality: level.levelData.quality || 0,
+      playerMoves: moveCount,
+      rejected: true
+    };
+    levelRatings.push(ratingData);
+    localStorage.setItem('steamFactoryRatings', JSON.stringify(levelRatings));
+    console.log('Level rejected (auto-rated 1)');
+  }
+
+  // Skip to next level
+  reverseMode = false;
+  reverseModeAvailable = false;
+  document.getElementById('reverse-btn').style.display = 'none';
+  transitionToNextLevel();
+});
+
+// Export ratings (press E to export)
+function exportRatings() {
+  const data = JSON.stringify(levelRatings);
+
+  // Create temp textarea, select, and copy
+  const ta = document.createElement('textarea');
+  ta.value = data;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+
+  let success = false;
+  try {
+    success = document.execCommand('copy');
+  } catch(e) {}
+
+  document.body.removeChild(ta);
+
+  if (success) {
+    alert(`Copied ${levelRatings.length} ratings to clipboard!`);
+  } else {
+    // Last resort - just show the data
+    alert(data);
+  }
+}
+
+// Also expose to console for easy access
+window.exportRatings = exportRatings;
+window.levelRatings = levelRatings;
+document.getElementById('export-btn').addEventListener('click', exportRatings);
+
 // === INIT ===
 window.addEventListener('resize', resize);
-loadLevel(0);
+initWorker();
+// initGame() is called by initWorker after levels load
+// For tutorial levels (first 6), we can start immediately
+const tutorialDone = localStorage.getItem('steamFactoryTutorialDone') === 'true';
+if (!tutorialDone) {
+  initGame();  // Tutorial levels are embedded, no need to wait
+}
+
+console.log(`Loaded ${levelRatings.length} existing ratings. Press E to export, or call exportRatings() in console.`);
   </script>
 </body>
 </html>
