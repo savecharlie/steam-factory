@@ -97,6 +97,7 @@
     <button id="restart-btn">Restart</button>
     <button id="hint-btn">Hint</button>
     <button id="reverse-btn" style="display:none">Reverse!</button>
+    <button id="debug-btn">Debug</button>
   </div>
   <div id="loading">Generating levels...</div>
 
@@ -2732,6 +2733,38 @@ rejectBtn.addEventListener('click', () => {
   reverseModeAvailable = false;
   document.getElementById('reverse-btn').style.display = 'none';
   transitionToNextLevel();
+});
+
+// === DEBUG ===
+document.getElementById('debug-btn').addEventListener('click', () => {
+  const level = currentLevel();
+  if (!level) {
+    navigator.clipboard.writeText('No level loaded');
+    alert('Copied: No level loaded');
+    return;
+  }
+
+  const {grid, gridW, gridH} = level;
+  const gridStr = grid.map((row, y) => {
+    return row.map((cell, x) => {
+      if (x === playerX && y === playerY) return '@'; // Mark player
+      return cell;
+    }).join('');
+  }).join('\n');
+
+  const info = `Level ${totalLevelNumber + 1} (index ${totalLevelNumber})
+Player: (${playerX}, ${playerY})
+Grid ${gridW}x${gridH}:
+${gridStr}
+Gate open: ${level.gateOpen}
+Reverse mode: ${reverseMode}`;
+
+  navigator.clipboard.writeText(info).then(() => {
+    const header = document.getElementById('header');
+    const oldText = header.textContent;
+    header.textContent = '📋 Debug copied!';
+    setTimeout(() => header.textContent = oldText, 1000);
+  });
 });
 
 // === INIT ===
