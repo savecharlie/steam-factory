@@ -156,7 +156,56 @@ def place_conveyor(lv: Level) -> bool:
 
 
 def place_teleporter_pair(lv: Level) -> bool:
-    """Place a pair of teleporters"""
+    """Place teleporters to enable barrel teleportation to button.
+
+    Strategy: Put teleporter 1 in barrel's push path, teleporter 2 near button
+    so barrel exits teleporter and slides onto button.
+    """
+    barrels = lv.find_all('B')
+    buttons = lv.find_all('O')
+
+    # If we have barrel + button, try smart placement
+    if barrels and buttons:
+        bx, by = barrels[0]
+        ox, oy = buttons[0]
+
+        # Try each direction for barrel push
+        for dx, dy in DIRS:
+            # Find where to put teleporter 1 (in barrel's path)
+            t1x, t1y = bx + dx, by + dy
+            # Skip if that's a wall or other object
+            if lv.get(t1x, t1y) != '.':
+                continue
+
+            # Find where to put teleporter 2 (so barrel exits toward button)
+            # Barrel will continue in same direction after teleport
+            # So t2 should be positioned such that (t2 + direction) leads to button
+
+            # Check if button is reachable from some position going in direction (dx, dy)
+            # Place t2 such that sliding from t2 in direction (dx, dy) hits button
+
+            # Work backwards from button
+            check_x, check_y = ox - dx, oy - dy
+            # Find a valid t2 position (must be floor, not too close to t1)
+            found_t2 = False
+            for dist in range(1, 6):
+                t2x = ox - dx * dist
+                t2y = oy - dy * dist
+                if lv.get(t2x, t2y) == '.' and abs(t1x - t2x) + abs(t1y - t2y) >= 3:
+                    # Verify path from t2 to button is clear
+                    clear = True
+                    cx, cy = t2x + dx, t2y + dy
+                    while (cx, cy) != (ox, oy):
+                        if lv.get(cx, cy) not in '.O':
+                            clear = False
+                            break
+                        cx, cy = cx + dx, cy + dy
+                    if clear:
+                        lv.set(t1x, t1y, '1')
+                        lv.set(t2x, t2y, '2')
+                        return True
+
+    # Fallback: random placement
     cells = lv.floor_cells()
     if len(cells) < 2:
         return False
@@ -165,7 +214,6 @@ def place_teleporter_pair(lv: Level) -> bool:
     x1, y1 = cells[0]
     x2, y2 = cells[1]
 
-    # Ensure they're far enough apart to be useful
     if abs(x1 - x2) + abs(y1 - y2) < 4:
         return False
 
@@ -418,6 +466,103 @@ def push_barrel(lv: Level, bx: int, by: int, dx: int, dy: int,
             return (new_barrels, new_sealed)
 
         x, y = next_x, next_y
+
+
+def barrel_teleports_in_solution(lv: Level, solution_dirs: List[str]) -> bool:
+    """Check if the solution requires barrel to pass through a teleporter.
+    Returns True only if a barrel actually teleports during the solution."""
+
+    DIRS_MAP = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
+
+    # Find all objects
+    barrels = set(lv.find_all('B'))
+    buttons = set(lv.find_all('O'))
+    valves = set(lv.find_all('V'))
+    gates = set(lv.find_all('G'))
+    sealed = set()
+
+    t1 = lv.find_all('1')
+    t2 = lv.find_all('2')
+    teleporters = {}
+    if t1 and t2:
+        teleporters[t1[0]] = t2[0]
+        teleporters[t2[0]] = t1[0]
+
+    if not teleporters or not barrels:
+        return False
+
+    # Find start position
+    start = lv.find_all('S')
+    if not start:
+        return False
+    px, py = start[0]
+
+    barrel_teleported = False
+
+    for move in solution_dirs:
+        if move not in DIRS_MAP:
+            continue
+        dx, dy = DIRS_MAP[move]
+
+        # Simulate player slide
+        for _ in range(50):
+            nx, ny = px + dx, py + dy
+            cell = lv.get(nx, ny)
+
+            if cell == '#':
+                break
+
+            # Check for barrel push
+            if (nx, ny) in barrels and (nx, ny) not in sealed:
+                # Try to push barrel
+                bx, by = nx + dx, ny + dy
+                if lv.get(bx, by) == '#' or (bx, by) in barrels:
+                    break  # Can't push
+
+                # Push the barrel
+                barrels.remove((nx, ny))
+                x, y = bx, by
+
+                while True:
+                    # Button stops barrel
+                    if (x, y) in buttons:
+                        barrels.add((x, y))
+                        break
+                    # Valve stops barrel
+                    if (x, y) in valves and (x, y) not in sealed:
+                        sealed.add((x, y))
+                        barrels.add((x, y))
+                        break
+                    # TELEPORTER - barrel warps!
+                    if (x, y) in teleporters:
+                        barrel_teleported = True  # THIS IS WHAT WE'RE LOOKING FOR
+                        x, y = teleporters[(x, y)]
+                    # Check next cell
+                    next_x, next_y = x + dx, y + dy
+                    next_cell = lv.get(next_x, next_y)
+                    if next_cell == '#' or (next_x, next_y) in barrels or (next_x, next_y) in gates:
+                        barrels.add((x, y))
+                        break
+                    x, y = next_x, next_y
+
+                px, py = nx, ny
+                break
+
+            if (nx, ny) in barrels:
+                break
+
+            px, py = nx, ny
+
+            # Player teleporter
+            if (px, py) in teleporters:
+                px, py = teleporters[(px, py)]
+
+            if (px, py) in buttons:
+                break
+            if lv.get(px, py) == 'X':
+                break
+
+    return barrel_teleported
 
 
 def score_quality(solution: Dict, lv: Level) -> int:
