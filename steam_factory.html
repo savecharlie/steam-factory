@@ -1805,9 +1805,11 @@ function pushBarrelGame(bx, by, dx, dy) {
     if (cell === '1' || cell === '2') {
       const targetChar = cell === '1' ? '2' : '1';
       const target = level.findCell(targetChar);
+      console.log(`Barrel at teleporter '${cell}', looking for '${targetChar}', found:`, target);
       if (target) {
         nx = target[0];
         ny = target[1];
+        console.log(`Barrel teleporting to (${nx}, ${ny})`);
         // Continue sliding from teleporter destination
       }
     }
