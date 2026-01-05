@@ -23,24 +23,18 @@ The generator (`src/train_generator.py`) must produce solvable, meaningful puzzl
 - **Gates**: Block path until button is pressed
 - **Teleporters**: Portal pairs (1/2). Player AND barrels warp through and continue sliding in same direction.
 
-## Teleporter Generation Bug (SOLVED)
-**Problem**: Random teleporter placement doesn't guarantee barrel teleportation is REQUIRED.
-The BFS solver finds shortest solution - if barrel can reach button directly, teleportation won't be used.
+## Teleporter Solver Bug (OPEN)
+**Problem**: Generator's BFS solver doesn't match game physics for teleporters.
+Solutions generated with teleporters often don't work in-game (11/15 levels broken).
 
-**Solution**: For levels requiring barrel teleportation:
-1. Generate level with teleporters
-2. Simulate the found solution
-3. Track if any barrel actually passes through a teleporter during simulation
-4. Only keep levels where `barrel_teleported == True`
+**Current workaround**: Don't use teleporter mechanic until solver is fixed.
+Generate with `mechanics: ['button']` or `['button', 'valve']` only.
 
-**Code pattern for filtering**:
-```python
-def barrel_teleports_in_solution(lv, solution):
-    """Returns True only if solution REQUIRES barrel to teleport"""
-    # Simulate solution step by step
-    # When barrel slides into teleporter position, set barrel_teleported = True
-    # Return barrel_teleported
-```
+**Root cause**: Likely mismatch in how teleporter continuation works:
+- Game: Player/barrel teleports, then continues sliding in same direction
+- Solver: May not properly simulate post-teleport sliding
+
+**TODO**: Fix generator_v2.py solver to match steam_factory.html game physics exactly.
 
 ## Generator Requirements
 The generator must verify:
