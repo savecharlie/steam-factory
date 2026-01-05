@@ -86,50 +86,6 @@
     }
     #reject-btn:hover { background: #7a3a3a; }
     #reject-btn:active { background: #9a4a4a; }
-    #rating-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-    #rating-overlay.show { display: flex; }
-    #rating-title {
-      color: #d4a847;
-      font-size: 20px;
-      margin-bottom: 15px;
-    }
-    #rating-stars {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 15px;
-    }
-    .star-btn {
-      background: #3a3028;
-      color: #888;
-      border: 2px solid #4b3a2a;
-      width: 32px;
-      height: 32px;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.1s;
-    }
-    .star-btn:hover, .star-btn.lit {
-      background: #6b5040;
-      color: #ffc864;
-      border-color: #d4a847;
-    }
-    #rating-skip {
-      color: #666;
-      font-size: 12px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    #rating-skip:hover { color: #888; }
   </style>
 </head>
 <body>
@@ -141,117 +97,10 @@
     <button id="restart-btn">Restart</button>
     <button id="hint-btn">Hint</button>
     <button id="reverse-btn" style="display:none">Reverse!</button>
-    <button id="export-btn">Export</button>
   </div>
   <div id="loading">Generating levels...</div>
-  <div id="rating-overlay">
-    <div id="rating-title">Rate this level</div>
-    <div id="rating-stars"></div>
-    <div id="rating-skip">skip rating</div>
-  </div>
 
   <script>
-// === TUTORIAL LEVELS (hardcoded) ===
-const TUTORIAL_LEVELS = [
-  {
-    "name": "Movement",
-    "grid": [
-      "#S###",
-      "#...#",
-      "##..#",
-      "#..##",
-      "#...#",
-      "#.#.#",
-      "#..##",
-      "##..#",
-      "###X#"
-    ],
-    "par": 11,
-    "solution": ["down","right","down","left","down","left","down","right","down","right","down"]
-  },
-  {
-    "name": "Barrel",
-    "grid": [
-      "#S###",
-      "#...#",
-      "#..B#",
-      "###.#",
-      "#...#",
-      "#...#",
-      "#..##",
-      "##..#",
-      "###X#"
-    ],
-    "par": 12,
-    "solution": ["down","right","up","right","down","down","left","down","right","down","right","down"]
-  },
-  {
-    "name": "Button",
-    "grid": [
-      "#S###",
-      "#..##",
-      "##..#",
-      "#...#",
-      "###.#",
-      "#.BO#",
-      "#...#",
-      "#..G#",
-      "###X#"
-    ],
-    "par": 12,
-    "solution": ["down","right","down","right","down","down","left","up","right","down","right","down"]
-  },
-  {
-    "name": "Valve",
-    "grid": [
-      "#S###",
-      "#...#",
-      "#.BV#",
-      "###.#",
-      "#...#",
-      "#...#",
-      "#..##",
-      "##..#",
-      "###X#"
-    ],
-    "par": 12,
-    "solution": ["down","right","up","right","down","down","left","down","right","down","right","down"]
-  },
-  {
-    "name": "Conveyor",
-    "grid": [
-      "#S###",
-      "#>..#",
-      "##..#",
-      "#..##",
-      "#.#.#",
-      "#..##",
-      "##..#",
-      "#...#",
-      "###X#"
-    ],
-    "par": 10,
-    "solution": ["right","down","left","down","left","down","right","down","right","down"]
-  },
-  {
-    "name": "Combo",
-    "grid": [
-      "#S####",
-      "#...##",
-      "##...#",
-      "#....#",
-      "#..#.#",
-      "#....#",
-      "##.BO#",
-      "#....#",
-      "#...G#",
-      "####X#"
-    ],
-    "par": 25,
-    "solution": ["down","right","down","right","up","left","down","right","up","left","up","right","down","left","down","right","left","up","right","down","up","left","down","right","down"]
-  }
-];
-
 // === JAVASCRIPT LEVEL GENERATOR ===
 const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];  // Up, Down, Left, Right
 const DIR_NAMES = ['up', 'down', 'left', 'right'];
@@ -1507,13 +1356,9 @@ function resize() {
   draw();
 }
 
-// Get level data from tutorial or queue
+// Get level data from queue
 function getLevelData(index) {
-  if (index < TUTORIAL_LEVELS.length) {
-    return TUTORIAL_LEVELS[index];
-  }
-
-  // Pre-generated levels are already quality-filtered
+  // Pre-generated levels from JSON
   if (levelQueue.length > 0) {
     const data = levelQueue.shift();
     return data;
@@ -1608,15 +1453,9 @@ function initGame() {
   targetViewportX = 0;
   targetViewportY = 0;
 
-  // Check if tutorial completed - skip to generated levels
-  const tutorialDone = localStorage.getItem('steamFactoryTutorialDone') === 'true';
-  const startLevel = tutorialDone ? TUTORIAL_LEVELS.length : 0;
+  // Start at level 0
+  const startLevel = 0;
   totalLevelNumber = startLevel;
-
-  // If skipping tutorial, start at higher difficulty for better levels
-  if (tutorialDone) {
-    currentDifficulty = 5;  // Start with button+gate combos
-  }
 
   // Load first two levels
   const firstData = getLevelData(startLevel);
@@ -1692,24 +1531,8 @@ function transitionToNextLevel() {
   // Record how long the previous level took
   recordLevelCompletion();
 
-  // Mark tutorial as complete when finishing last tutorial level
-  if (totalLevelNumber === TUTORIAL_LEVELS.length - 1) {
-    localStorage.setItem('steamFactoryTutorialDone', 'true');
-    console.log('Tutorial completed! Will skip to generated levels next time.');
-  }
-
-  // Show rating overlay for generated levels (not tutorials)
-  const justCompletedLevel = currentLevel();
-  const showRating = totalLevelNumber >= TUTORIAL_LEVELS.length &&
-                     justCompletedLevel && justCompletedLevel.levelData;
-
   currentLevelIndex++;
   totalLevelNumber++;
-
-  // Show rating after incrementing counters (so we rate the completed level)
-  if (showRating) {
-    showRatingOverlay(justCompletedLevel);
-  }
 
   const level = currentLevel();
   if (!level) return;
@@ -2788,7 +2611,6 @@ document.addEventListener('keydown', e => {
     case 'ArrowLeft': case 'a': case 'A': move(-1, 0); break;
     case 'ArrowRight': case 'd': case 'D': move(1, 0); break;
     case 'r': case 'R': loadLevel(totalLevelNumber); break;
-    case 'e': case 'E': exportRatings(); break;
   }
 });
 
@@ -2893,68 +2715,9 @@ function enterReverseMode() {
   draw();
 }
 
-// === RATING SYSTEM ===
-const ratingOverlay = document.getElementById('rating-overlay');
-const ratingStars = document.getElementById('rating-stars');
-const ratingSkip = document.getElementById('rating-skip');
+// Skip button - skip current level
 const rejectBtn = document.getElementById('reject-btn');
-let pendingRatingLevel = null;  // Level awaiting rating
-let levelRatings = JSON.parse(localStorage.getItem('steamFactoryRatings') || '[]');
-
-// Create 10 star buttons
-for (let i = 1; i <= 10; i++) {
-  const btn = document.createElement('button');
-  btn.className = 'star-btn';
-  btn.textContent = i;
-  btn.dataset.rating = i;
-  btn.addEventListener('mouseenter', () => highlightStars(i));
-  btn.addEventListener('mouseleave', () => highlightStars(0));
-  btn.addEventListener('click', () => submitRating(i));
-  ratingStars.appendChild(btn);
-}
-
-function highlightStars(upTo) {
-  const stars = ratingStars.querySelectorAll('.star-btn');
-  stars.forEach((star, idx) => {
-    star.classList.toggle('lit', idx < upTo);
-  });
-}
-
-function showRatingOverlay(level) {
-  pendingRatingLevel = level;
-  highlightStars(0);
-  ratingOverlay.classList.add('show');
-}
-
-function hideRatingOverlay() {
-  ratingOverlay.classList.remove('show');
-  pendingRatingLevel = null;
-}
-
-function submitRating(rating) {
-  if (!pendingRatingLevel) return;
-
-  const ratingData = {
-    timestamp: Date.now(),
-    rating: rating,
-    levelData: pendingRatingLevel.levelData,
-    par: pendingRatingLevel.levelData.par,
-    quality: pendingRatingLevel.levelData.quality || 0,
-    playerMoves: moveCount
-  };
-
-  levelRatings.push(ratingData);
-  localStorage.setItem('steamFactoryRatings', JSON.stringify(levelRatings));
-
-  console.log(`Level rated ${rating}/10, par=${ratingData.par}, quality=${ratingData.quality}`);
-  hideRatingOverlay();
-}
-
-ratingSkip.addEventListener('click', hideRatingOverlay);
-
-// Reject button - skip current level and rate it 1
 rejectBtn.addEventListener('click', () => {
-  // If at end of forward journey, skip reverse and... restart? Or just stay?
   if (journeyComplete) {
     journeyComplete = false;
     document.getElementById('reverse-btn').style.display = 'none';
@@ -2965,22 +2728,6 @@ rejectBtn.addEventListener('click', () => {
   const level = currentLevel();
   if (!level) return;
 
-  // Only rate generated levels (not tutorials)
-  if (totalLevelNumber > TUTORIAL_LEVELS.length && level.levelData) {
-    const ratingData = {
-      timestamp: Date.now(),
-      rating: 1,
-      levelData: level.levelData,
-      par: level.levelData.par,
-      quality: level.levelData.quality || 0,
-      playerMoves: moveCount,
-      rejected: true
-    };
-    levelRatings.push(ratingData);
-    localStorage.setItem('steamFactoryRatings', JSON.stringify(levelRatings));
-    console.log('Level rejected (auto-rated 1)');
-  }
-
   // Skip to next level
   reverseMode = false;
   reverseModeAvailable = false;
@@ -2988,50 +2735,9 @@ rejectBtn.addEventListener('click', () => {
   transitionToNextLevel();
 });
 
-// Export ratings (press E to export)
-function exportRatings() {
-  const data = JSON.stringify(levelRatings);
-
-  // Create temp textarea, select, and copy
-  const ta = document.createElement('textarea');
-  ta.value = data;
-  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  ta.setSelectionRange(0, 99999);
-
-  let success = false;
-  try {
-    success = document.execCommand('copy');
-  } catch(e) {}
-
-  document.body.removeChild(ta);
-
-  if (success) {
-    alert(`Copied ${levelRatings.length} ratings to clipboard!`);
-  } else {
-    // Last resort - just show the data
-    alert(data);
-  }
-}
-
-// Also expose to console for easy access
-window.exportRatings = exportRatings;
-window.levelRatings = levelRatings;
-document.getElementById('export-btn').addEventListener('click', exportRatings);
-
 // === INIT ===
 window.addEventListener('resize', resize);
 initWorker();
-// initGame() is called by initWorker after levels load
-// For tutorial levels (first 6), we can start immediately
-const tutorialDone = localStorage.getItem('steamFactoryTutorialDone') === 'true';
-if (!tutorialDone) {
-  initGame();  // Tutorial levels are embedded, no need to wait
-}
-
-console.log(`Loaded ${levelRatings.length} existing ratings. Press E to export, or call exportRatings() in console.`);
   </script>
 </body>
 </html>
