@@ -1807,12 +1807,17 @@ function pushBarrelGame(bx, by, dx, dy) {
     if (cell === '1' || cell === '2') {
       const targetChar = cell === '1' ? '2' : '1';
       const target = level.findCell(targetChar);
-      console.log(`Barrel at teleporter '${cell}', looking for '${targetChar}', found:`, target);
       if (target) {
+        const oldX = nx, oldY = ny;
         nx = target[0];
         ny = target[1];
-        console.log(`Barrel teleporting to (${nx}, ${ny})`);
-        // Continue sliding from teleporter destination
+        console.log(`BARREL TELEPORTED from (${oldX},${oldY}) to (${nx},${ny})`);
+        // Flash header to confirm teleport
+        const header = document.getElementById('header');
+        const oldText = header.textContent;
+        header.textContent = '⚡ BARREL TELEPORTED! ⚡';
+        header.style.color = '#ff0';
+        setTimeout(() => { header.textContent = oldText; header.style.color = ''; }, 1000);
       }
     }
 
