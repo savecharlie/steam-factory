@@ -1774,7 +1774,9 @@ function canPushBarrel(bx, by, dx, dy) {
   if (dest === ']' && dy !== 1) return false;
   if (dest === '[' && dy !== -1) return false;
 
-  return dest === '.' || dest === 'O' || dest === 'V' || dest === ')' || dest === '(' || dest === ']' || dest === '[' || dest === '1' || dest === '2';
+  const canPush = dest === '.' || dest === 'O' || dest === 'V' || dest === ')' || dest === '(' || dest === ']' || dest === '[' || dest === '1' || dest === '2';
+  console.log(`canPushBarrel(${bx},${by}) dir(${dx},${dy}) -> dest(${nx},${ny})='${dest}' canPush=${canPush}`);
+  return canPush;
 }
 
 function pushBarrelGame(bx, by, dx, dy) {
