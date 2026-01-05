@@ -1,54 +1,34 @@
 [
   {
     "grid": [
-      "###S###",
-      "#....##",
-      "#...2##",
-      "##..O.#",
-      "##.B#G#",
-      "#..1.##",
+      "####S##",
+      "#...1.#",
+      "#.#.B##",
+      "#..O..#",
+      "#.#2.##",
       "#.....#",
-      "#....##",
-      "###X###"
+      "#.#.#.#",
+      "##G...#",
+      "##X####"
     ],
     "width": 7,
     "height": 9,
-    "par": 4,
+    "par": 12,
     "solution": [
       "down",
-      "down",
+      "right",
       "up",
-      "down"
-    ],
-    "quality": 260,
-    "mechanics": [
-      "barrel",
-      "button",
-      "teleporter"
-    ]
-  },
-  {
-    "grid": [
-      "#####S#",
-      "#...1B#",
-      "##....#",
-      "#.#.O2#",
-      "##....#",
-      "#G....#",
-      "#.....#",
-      "#...#.#",
-      "###X###"
-    ],
-    "width": 7,
-    "height": 9,
-    "par": 4,
-    "solution": [
+      "left",
+      "up",
+      "right",
+      "up",
       "down",
+      "right",
       "down",
       "left",
       "down"
     ],
-    "quality": 230,
+    "quality": 370,
     "mechanics": [
       "barrel",
       "button",
@@ -58,26 +38,31 @@
   {
     "grid": [
       "##S####",
-      "#.B.2##",
-      "#.1...#",
-      "#..#O##",
-      "#.###.#",
-      "#...#.#",
-      "#.##G.#",
-      "#....##",
-      "####X##"
+      "##....#",
+      "#O.#1.#",
+      "#2..B##",
+      "##.#..#",
+      "#..##.#",
+      "#.....#",
+      "#...#G#",
+      "#####X#"
     ],
     "width": 7,
     "height": 9,
-    "par": 5,
+    "par": 10,
     "solution": [
       "down",
+      "right",
+      "up",
+      "right",
+      "up",
       "left",
+      "up",
       "down",
       "right",
       "down"
     ],
-    "quality": 250,
+    "quality": 340,
     "mechanics": [
       "barrel",
       "button",
@@ -86,28 +71,133 @@
   },
   {
     "grid": [
-      "#####S#",
-      "##.#1O#",
-      "#.#.B.#",
-      "#..#.2#",
-      "#....##",
-      "##....#",
-      "##.#G##",
+      "#S#####",
+      "#..1###",
+      "##.B..#",
+      "#....O#",
+      "#.#..2#",
+      "##.#.##",
+      "##.G..#",
       "#.....#",
-      "#X#####"
+      "#####X#"
     ],
     "width": 7,
     "height": 9,
-    "par": 6,
+    "par": 10,
     "solution": [
       "down",
+      "right",
       "left",
       "up",
+      "left",
+      "down",
+      "right",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 340,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "#S#####",
+      "#.....#",
+      "#..O2.#",
+      "#..#.##",
+      "#..G###",
+      "#..1B.#",
+      "#...#.#",
+      "#.....#",
+      "###X###"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 11,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "left",
+      "left",
+      "up",
+      "left",
+      "down",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 330,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "#S#####",
+      "#.2.B.#",
+      "##..1.#",
+      "#.O..##",
+      "##..###",
+      "#..#G.#",
+      "##.#..#",
+      "#.....#",
+      "#####X#"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 10,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "left",
+      "left",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 320,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "###S###",
+      "#..B.O#",
+      "#.#1.##",
+      "##.##.#",
+      "#.....#",
+      "#G...##",
+      "#.2#..#",
+      "###...#",
+      "###X###"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 8,
+    "solution": [
+      "down",
+      "down",
+      "up",
+      "down",
+      "right",
       "down",
       "left",
       "down"
     ],
-    "quality": 280,
+    "quality": 320,
     "mechanics": [
       "barrel",
       "button",
@@ -117,24 +207,91 @@
   {
     "grid": [
       "####S##",
-      "#2....#",
-      "#O....#",
-      "#B..#.#",
-      "#1G..##",
-      "#.....#",
-      "#...#.#",
+      "#..#.##",
+      "#..#..#",
+      "#...O1#",
+      "###..B#",
+      "#...2.#",
       "#..##.#",
+      "#.G#..#",
       "##X####"
     ],
     "width": 7,
     "height": 9,
-    "par": 7,
+    "par": 9,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "left",
+      "down",
+      "left",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 310,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "###S###",
+      "#1.O#.#",
+      "#B.2..#",
+      "#.....#",
+      "#...#.#",
+      "#..#..#",
+      "#...#.#",
+      "#.#G..#",
+      "###X###"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 9,
+    "solution": [
+      "down",
+      "left",
+      "down",
+      "left",
+      "up",
+      "right",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 310,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "###S###",
+      "##.1B.#",
+      "#..#..#",
+      "#..O2.#",
+      "##....#",
+      "#G....#",
+      "##...##",
+      "##....#",
+      "###X###"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 8,
     "solution": [
       "down",
       "left",
       "up",
-      "up",
       "right",
+      "up",
+      "left",
       "left",
       "down"
     ],
@@ -147,14 +304,46 @@
   },
   {
     "grid": [
-      "#S#####",
+      "##S####",
+      "#..1B.#",
+      "##....#",
+      "#.#.O2#",
+      "#.#.G.#",
+      "##.#.##",
+      "##....#",
+      "#..##.#",
+      "#####X#"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 8,
+    "solution": [
+      "down",
+      "right",
+      "up",
+      "left",
+      "left",
+      "down",
+      "right",
+      "down"
+    ],
+    "quality": 290,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "##S####",
+      "#..O1.#",
+      "#...B.#",
+      "#..2.##",
       "#..#..#",
-      "##.2###",
-      "#..O..#",
-      "#.G.#.#",
-      "##B.###",
-      "##1..##",
+      "#.#.G##",
       "#.....#",
+      "#.##..#",
       "####X##"
     ],
     "width": 7,
@@ -162,9 +351,40 @@
     "par": 7,
     "solution": [
       "down",
+      "left",
+      "up",
       "right",
+      "right",
+      "up",
+      "down"
+    ],
+    "quality": 290,
+    "mechanics": [
+      "barrel",
+      "button",
+      "teleporter"
+    ]
+  },
+  {
+    "grid": [
+      "#S#####",
+      "#.O2..#",
+      "#...#.#",
+      "#1B...#",
+      "#..#G##",
+      "##.#.##",
+      "#.....#",
+      "#...#.#",
+      "#####X#"
+    ],
+    "width": 7,
+    "height": 9,
+    "par": 7,
+    "solution": [
       "down",
-      "right",
+      "left",
+      "down",
+      "left",
       "up",
       "right",
       "down"
@@ -178,31 +398,29 @@
   },
   {
     "grid": [
-      "#####S#",
-      "#.#O2.#",
-      "##.#.##",
-      "##..#.#",
-      "#1B..##",
-      "#..#..#",
-      "#.....#",
-      "##G...#",
+      "####S##",
+      "#.2.B.#",
+      "#.O.1##",
+      "#..#.##",
+      "##.#..#",
+      "#...#.#",
+      "#.##..#",
+      "#..#G##",
       "##X####"
     ],
     "width": 7,
     "height": 9,
-    "par": 9,
+    "par": 7,
     "solution": [
       "down",
       "left",
       "down",
+      "left",
+      "down",
       "right",
-      "up",
-      "left",
-      "up",
-      "left",
       "down"
     ],
-    "quality": 310,
+    "quality": 280,
     "mechanics": [
       "barrel",
       "button",
@@ -211,31 +429,29 @@
   },
   {
     "grid": [
-      "##S####",
-      "#....2#",
-      "#....O#",
-      "#.#..##",
-      "#..GB.#",
-      "#..#1.#",
-      "#..#..#",
-      "##....#",
-      "####X##"
+      "#####S#",
+      "#.#.B1#",
+      "#.....#",
+      "#...2O#",
+      "#....##",
+      "#.....#",
+      "#.#...#",
+      "#.#..G#",
+      "#X#####"
     ],
     "width": 7,
     "height": 9,
-    "par": 9,
+    "par": 7,
     "solution": [
       "down",
-      "right",
-      "up",
-      "up",
       "left",
       "up",
       "right",
-      "right",
+      "down",
+      "left",
       "down"
     ],
-    "quality": 300,
+    "quality": 280,
     "mechanics": [
       "barrel",
       "button",
@@ -245,67 +461,25 @@
   {
     "grid": [
       "###S###",
-      "#...#2#",
-      "#B.#.O#",
-      "#1..###",
-      "#G.####",
       "#.....#",
+      "#2.B..#",
+      "#O.1..#",
+      "###..##",
       "#....##",
-      "#.#...#",
+      "##....#",
+      "#G#..##",
       "###X###"
     ],
     "width": 7,
     "height": 9,
-    "par": 9,
+    "par": 4,
     "solution": [
       "down",
-      "left",
       "down",
-      "right",
-      "down",
-      "right",
-      "down",
-      "left",
+      "up",
       "down"
     ],
-    "quality": 310,
-    "mechanics": [
-      "barrel",
-      "button",
-      "teleporter"
-    ]
-  },
-  {
-    "grid": [
-      "##S####",
-      "#..#..#",
-      "#.....#",
-      "##..O##",
-      "##...##",
-      "#....1#",
-      "#.#G.B#",
-      "#.##2.#",
-      "####X##"
-    ],
-    "width": 7,
-    "height": 9,
-    "par": 13,
-    "solution": [
-      "down",
-      "right",
-      "up",
-      "left",
-      "up",
-      "right",
-      "up",
-      "left",
-      "down",
-      "left",
-      "down",
-      "right",
-      "down"
-    ],
-    "quality": 370,
+    "quality": 260,
     "mechanics": [
       "barrel",
       "button",
