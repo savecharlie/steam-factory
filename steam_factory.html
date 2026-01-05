@@ -1774,9 +1774,7 @@ function canPushBarrel(bx, by, dx, dy) {
   if (dest === ']' && dy !== 1) return false;
   if (dest === '[' && dy !== -1) return false;
 
-  const canPush = dest === '.' || dest === 'O' || dest === 'V' || dest === ')' || dest === '(' || dest === ']' || dest === '[' || dest === '1' || dest === '2';
-  console.log(`canPushBarrel(${bx},${by}) dir(${dx},${dy}) -> dest(${nx},${ny})='${dest}' canPush=${canPush}`);
-  return canPush;
+  return dest === '.' || dest === 'O' || dest === 'V' || dest === ')' || dest === '(' || dest === ']' || dest === '[' || dest === '1' || dest === '2';
 }
 
 function pushBarrelGame(bx, by, dx, dy) {
@@ -1808,16 +1806,8 @@ function pushBarrelGame(bx, by, dx, dy) {
       const targetChar = cell === '1' ? '2' : '1';
       const target = level.findCell(targetChar);
       if (target) {
-        const oldX = nx, oldY = ny;
         nx = target[0];
         ny = target[1];
-        console.log(`BARREL TELEPORTED from (${oldX},${oldY}) to (${nx},${ny})`);
-        // Flash header to confirm teleport
-        const header = document.getElementById('header');
-        const oldText = header.textContent;
-        header.textContent = '⚡ BARREL TELEPORTED! ⚡';
-        header.style.color = '#ff0';
-        setTimeout(() => { header.textContent = oldText; header.style.color = ''; }, 1000);
       }
     }
 
